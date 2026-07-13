@@ -19,8 +19,8 @@ that every URL Claude returned actually came from the fetched data; anything
 that does not match is dropped. Every factual field in the final email (venue,
 host, date, prize) is rendered from the original source data, never from
 Claude's output, so a hallucinated detail is not just discouraged, it is
-structurally impossible. See `spec.md` for the full architecture and
-`learnings.md` for why it is built this way.
+structurally impossible. See `SPEC.md` for the full architecture and
+`LEARNINGS.md` for why it is built this way.
 
 ## Setup
 
@@ -55,7 +55,7 @@ See `scheduler/systemd/README.md` for install and log commands.
 ## Morning proof-of-life
 
 Note: enabling the systemd timer during the build triggered an immediate real
-run (a `Persistent=true` first-enable side effect, see `learnings.md`), so a
+run (a `Persistent=true` first-enable side effect, see `LEARNINGS.md`), so a
 real digest email has already been sent once, tonight, and `cache.json` and
 `archive/` already exist. Check the inbox first; the proof-of-life may already
 be sitting there.

@@ -23,7 +23,7 @@ Asia/Kolkata. No sudo is used anywhere in this project; scheduling is
 
 Python 3.13. Dependencies: `anthropic`, `requests`, `python-dotenv`,
 `markdown`, `pytest` (see `requirements.txt`). Model: `claude-sonnet-5`, called
-with extended thinking explicitly disabled (see `learnings.md` for why).
+with extended thinking explicitly disabled (see `LEARNINGS.md` for why).
 
 ## Structure
 
@@ -64,13 +64,13 @@ journalctl --user -u buildathon-radar.service   # read run logs
 
 - v1 sources are Devpost and Devfolio only. Cerebral Valley and Luma, the two
   sources that would have caught the actual missed events motivating this
-  project, are v2 backlog, not built (see `spec.md` and `ROADMAP.md`).
+  project, are v2 backlog, not built (see `SPEC.md` and `ROADMAP.md`).
 - Devpost's list API has no ISO dates, only a human string; date parsing is
   best-effort and falls back to `"Unknown"` on anything it cannot parse.
 - The cache suppresses an event for 45 days after first sight, including
   events Claude rejected, so a rejected event is not re-scored weekly. An
   event whose listing improves after rejection will not be re-evaluated
   within that window.
-- `ROADMAP.md` in the repo root is the original planning document with the
-  full endpoint recon and resolved open questions. Treat it as historical
-  record; `spec.md` and this file are the living references.
+- `ROADMAP.md` is forward-looking: shipped status and what comes next.
+  `docs/BUILD-HISTORY.md` is the archived original build plan and endpoint
+  recon. `SPEC.md` and this file are the living architecture references.

@@ -1,4 +1,4 @@
-# learnings.md: why it is built this way
+# LEARNINGS.md: why it is built this way
 
 ## Structured picks instead of free markdown
 

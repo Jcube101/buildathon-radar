@@ -1,4 +1,4 @@
-# spec.md: architecture and design
+# SPEC.md: architecture and design
 
 ## Pipeline
 
@@ -79,7 +79,7 @@ published, location), `""` (dates, prize), or `[]` (themes).
 ## The Claude filter
 
 Model: `claude-sonnet-5`, `max_tokens=8000`, extended thinking explicitly
-disabled (`thinking={"type": "disabled"}`). See `learnings.md` for why: with
+disabled (`thinking={"type": "disabled"}`). See `LEARNINGS.md` for why: with
 thinking enabled, a batch of 90 events caused the model to spend its entire
 token budget on internal reasoning and return zero text output.
 
