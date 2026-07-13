@@ -20,6 +20,7 @@ class TestSubjectFormatting:
             "*note*\n\n## Must-see\n\n### [Event A](https://a.com)\ncard\n\n"
             "### [Event B](https://b.com)\ncard\n\n---\n**Source health:** x"
         )
+        html_digest = "<html><body>preview</body></html>"
         with patch.object(deliver, "smtplib") as mock_smtplib, patch.object(
             deliver, "save_to_archive"
         ):
@@ -27,13 +28,15 @@ class TestSubjectFormatting:
             mock_smtplib.SMTP_SSL.return_value.__enter__.return_value = mock_server
             mock_smtplib.SMTPAuthenticationError = smtplib_auth_error()
             mock_smtplib.SMTPException = Exception
-            deliver.send_digest(digest_text)
+            deliver.send_digest(digest_text, html_digest)
 
         sent_msg = mock_server.sendmail.call_args[0][2]
         assert "2 events" in _decoded_subject(sent_msg)
+        assert "preview" in sent_msg
 
     def test_send_digest_zero_picks_subject(self):
         digest_text = "Quiet week: 0 events.\n\n---\n**Source health:** x"
+        html_digest = "<html><body>quiet</body></html>"
         with patch.object(deliver, "smtplib") as mock_smtplib, patch.object(
             deliver, "save_to_archive"
         ):
@@ -41,7 +44,7 @@ class TestSubjectFormatting:
             mock_smtplib.SMTP_SSL.return_value.__enter__.return_value = mock_server
             mock_smtplib.SMTPAuthenticationError = smtplib_auth_error()
             mock_smtplib.SMTPException = Exception
-            deliver.send_digest(digest_text)
+            deliver.send_digest(digest_text, html_digest)
 
         sent_msg = mock_server.sendmail.call_args[0][2]
         assert "0 events" in _decoded_subject(sent_msg)
@@ -59,7 +62,7 @@ class TestMissingCredentials:
         with patch.object(deliver, "smtplib") as mock_smtplib, patch.object(
             deliver, "save_to_archive"
         ):
-            deliver.send_digest("some digest")
+            deliver.send_digest("some digest", "<html></html>")
         mock_smtplib.SMTP_SSL.assert_not_called()
 
 
@@ -90,15 +93,3 @@ class TestGetDateRange:
     def test_returns_nonempty_string(self):
         assert isinstance(deliver.get_date_range(), str)
         assert len(deliver.get_date_range()) > 0
-
-
-class TestMarkdownToHtml:
-    def test_contains_heading_and_body(self):
-        html = deliver.markdown_to_html("## Hello\n\nSome text", "Jul 1 - 7, 2026")
-        assert "Buildathon Radar" in html
-        assert "Hello" in html
-        assert "Jul 1 - 7, 2026" in html
-
-    def test_no_date_range_omits_subtitle_block(self):
-        html = deliver.markdown_to_html("body text", None)
-        assert "Buildathon Radar" in html

@@ -553,7 +553,7 @@ Write both unit files exactly as in Section 11 into `scheduler/systemd/` plus a 
 Write the five-file doc set per AGENT-PATTERN §10: `README.md` (what it is, setup, run, morning proof-of-life instructions), `spec.md` (architecture, sources with verified endpoints, contract, rubric, guard), `roadmap.md` (done/not-done checklist reflecting this build plus the v2 backlog from Section 12), `learnings.md` (design rationale: JSON-picks vs free-markdown, the mechanical guard vs prompt-only, cache-everything tradeoff, TTL choice, Unstop rejection), `CLAUDE.md` (working context: owner, machine, stack, structure, commands, limitation notes). Update `.env.example`'s dependency comment line to the new package list.
 *Verify (final gate, all three):* `venv/bin/pytest` green; `venv/bin/python main.py --dry-run` exits 0 (second and last live Claude call); `systemctl --user list-timers` still shows the timer. Then final commit.
 
-**Explicitly left for Job (morning proof-of-life):** run `venv/bin/python main.py` once (no flag). This performs the first real run: live fetch, live Claude call, writes `cache.json`, writes `archive/radar_*.md`, and sends the one real digest email to jobjoseph99@gmail.com. Nothing else remains.
+**Explicitly left for me (morning proof-of-life):** run `venv/bin/python main.py` once (no flag). This performs the first real run: live fetch, live Claude call, writes `cache.json`, writes `archive/radar_*.md`, and sends the one real digest email to my inbox. Nothing else remains.
 
 ---
 

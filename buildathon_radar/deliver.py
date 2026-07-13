@@ -4,13 +4,11 @@ from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-import markdown
 from dotenv import load_dotenv
 
 load_dotenv()
 
 ARCHIVE_DIR = "archive"
-ACCENT_COLOR = "#1a56db"
 
 
 def get_date_range():
@@ -22,26 +20,6 @@ def get_date_range():
     elif start.year == end.year:
         return f"{start.strftime('%b %d')} - {end.strftime('%b %d, %Y')}"
     return f"{start.strftime('%b %d, %Y')} - {end.strftime('%b %d, %Y')}"
-
-
-def markdown_to_html(text, date_range=None):
-    html_body = markdown.markdown(text, extensions=["extra", "nl2br"])
-    subtitle = (
-        f'<p style="color:#666;font-size:14px;margin-top:-6px;">{date_range}</p>'
-        if date_range
-        else ""
-    )
-    return f"""<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body style="font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 680px; margin: 0 auto; padding: 24px; color: #1a1a1a; line-height: 1.6;">
-  <h1 style="color: {ACCENT_COLOR}; border-bottom: 3px solid {ACCENT_COLOR}; padding-bottom: 8px;">Buildathon Radar</h1>
-  {subtitle}
-  <div>{html_body}</div>
-  <hr style="margin-top: 32px; border: none; border-top: 1px solid #ddd;">
-  <p style="color: #999; font-size: 12px;">Buildathon Radar scans Devpost and Devfolio weekly and emails you every Sunday.</p>
-</body>
-</html>"""
 
 
 def save_to_archive(digest_text):
@@ -58,7 +36,7 @@ def _count_picks(digest_text):
     return digest_text.count("\n### [")
 
 
-def send_digest(digest_text):
+def send_digest(digest_text, html_digest):
     try:
         save_to_archive(digest_text)
     except Exception as e:
@@ -75,7 +53,6 @@ def send_digest(digest_text):
         return
 
     try:
-        date_range = get_date_range()
         pick_count = _count_picks(digest_text)
 
         msg = MIMEMultipart("alternative")
@@ -87,7 +64,7 @@ def send_digest(digest_text):
         msg["To"] = recipient
 
         text_part = MIMEText(digest_text, "plain")
-        html_part = MIMEText(markdown_to_html(digest_text, date_range), "html")
+        html_part = MIMEText(html_digest, "html")
 
         msg.attach(text_part)
         msg.attach(html_part)

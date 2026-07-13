@@ -14,8 +14,7 @@ layers from scratch.
 
 ## Owner and machine
 
-Owner: Job, an AI product manager in Bengaluru, India. Email:
-jobjoseph99@gmail.com. Runs on jobpi, a Raspberry Pi 5 on Debian 13, user
+Owner: Job, an AI product manager in Bengaluru, India. Runs on jobpi, a Raspberry Pi 5 on Debian 13, user
 jcube, project at `/home/jcube/projects/buildathon-radar`. Timezone
 Asia/Kolkata. No sudo is used anywhere in this project; scheduling is
 `systemctl --user` with lingering already enabled for jcube.

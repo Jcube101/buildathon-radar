@@ -45,6 +45,30 @@ VALID_JSON = json.dumps(
 )
 
 
+class TestRubricContent:
+    def test_student_college_exclusion_present(self):
+        assert "student" in agent.SYSTEM_PROMPT.lower()
+        assert "Build with Gemma (Bengaluru AI Sprint)" in agent.SYSTEM_PROMPT
+        assert "Hack On Hills 8.0" in agent.SYSTEM_PROMPT
+
+    def test_corporate_geography_boost_present(self):
+        assert "corporate" in agent.SYSTEM_PROMPT.lower()
+
+    def test_india_inaccessible_platform_exclusion_present(self):
+        assert "Qwen Cloud" in agent.SYSTEM_PROMPT
+        assert "Alibaba Cloud" in agent.SYSTEM_PROMPT
+
+    def test_hardware_exclusion_present(self):
+        assert "Arm Create" in agent.SYSTEM_PROMPT
+        assert "hardware" in agent.SYSTEM_PROMPT.lower()
+
+    def test_tier_structure_unchanged(self):
+        assert "must_see: score 70 or above" in agent.SYSTEM_PROMPT
+        assert "worth_a_look: score 50 to 69" in agent.SYSTEM_PROMPT
+        assert "radar: score 35 to 49" in agent.SYSTEM_PROMPT
+        assert "at most 12 picks" in agent.SYSTEM_PROMPT
+
+
 class TestEmptyInput:
     def test_empty_items_never_calls_client(self):
         with patch.object(agent.client.messages, "create") as mock_create:

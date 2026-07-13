@@ -1,8 +1,8 @@
 import sys
 
 from buildathon_radar.agent import run_agent
-from buildathon_radar.deliver import send_digest, send_failure_email
-from buildathon_radar.digest import build_digest
+from buildathon_radar.deliver import get_date_range, send_digest, send_failure_email
+from buildathon_radar.digest import build_digest, build_html_digest
 from buildathon_radar.fetcher import fetch_events
 from buildathon_radar.guard import validate_picks
 
@@ -24,7 +24,14 @@ try:
     if dry_run:
         print("\nDRY RUN - cache not updated, email not sent")
     else:
-        send_digest(digest)
+        html_digest = build_html_digest(
+            valid_picks,
+            dropped_picks,
+            source_health,
+            agent_result["week_note"],
+            get_date_range(),
+        )
+        send_digest(digest, html_digest)
 
     sys.exit(0)
 

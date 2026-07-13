@@ -69,6 +69,6 @@ venv/bin/python main.py
 ```
 
 A healthy result looks like: the digest prints to the console and an email
-titled "Buildathon Radar" arrives at jobjoseph99@gmail.com within a minute or
+titled "Buildathon Radar" arrives at my inbbox within a minute or
 two. After that, the Sunday timer takes over on its own, next firing
 2026-07-19 17:00 IST.
