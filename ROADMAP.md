@@ -654,6 +654,77 @@ Each has a default; the executor builds the default unless an override is noted 
 
 ---
 
+## 15. v2 tracker vision (product direction, documentation of intent, not a build instruction)
+
+This section records where Job wants buildathon-radar to grow after v1. Nothing here should be built this session or any session unless explicitly scoped. It is written richly enough that a future session can turn any one piece of it into a proper build plan without having to re-derive the intent from scratch.
+
+### 15.1 The evolution: one-way notifier to two-way tracker
+
+v1 is a one-way system: it watches sources and tells Job about events. It has no memory of what Job actually did about any of them. v2's central idea is to close that loop: Job acts on an event (tracks it, applies to it), and buildathon-radar holds state about that action so future digests, a participation log, and eventually a small dashboard can all reflect what Job is actually doing, not just what exists to be found. The cache restructure done in this session (composite `event_id`, `urls` as an array, `event_start`/`event_end` on every record) is deliberately shaped so this later state can hang off the same per-event record without another migration.
+
+### 15.2 Per-event actions: Track and Applied
+
+Job wants two buttons on every event card in the email:
+
+- **Track**: bring this event back into next week's digest as a standing reminder, independent of the date-aware resurface logic in Section 7. A tracked event is something Job has flagged as worth watching, not something the system decided to resurface on its own.
+- **Applied**: log that Job has registered for this event. This is the seed of the participation log (15.3) and the lifecycle state (15.4).
+
+The hard technical constraint, stated plainly so a future session does not try to fight it: **email is static HTML**. There is no way for a button inside an email to write state back to any store by itself; an `<a>` tag can only navigate somewhere. So a "Track" or "Applied" button is a link to an HTTP endpoint that performs the action and returns a small confirmation page, not a form submission handled in-place.
+
+This means buildathon-radar has to grow a small web service to receive those clicks. The natural shape, matching infrastructure Job already runs on the same Pi for other personal tools:
+
+- A small FastAPI app, run as its own systemd user service alongside `buildathon-radar.service` (the weekly digest job stays a `Type=oneshot` timer-triggered script; this would be a separate long-running `Type=simple` service).
+- Exposed to the internet via Cloudflare Tunnel, the same pattern already used for PhotoRank and Vane, so there is no new infrastructure concept to learn, just another tunnel and another subdomain. Candidate subdomain: `radar.job-joseph.com`.
+- Routes along the lines of `GET /track?event_id=...` and `GET /applied?event_id=...` (GET, not POST, since the only client is a clicked email link, not a form), each looking up the event_id in the tracker store, updating its state, and rendering a minimal HTML confirmation page ("Tracked: Build with Gemma" or similar). No auth needed if the event_id space is large and unguessable enough to not be worth securing further for a personal tool, though this should be revisited if the service ever does anything more sensitive than logging a click.
+- The tracker store itself could start as simply an extension of `cache.json` (each record already has an `event_id` to key off of) or a small separate JSON/SQLite store keyed the same way. Given the lifecycle fields in 15.4, a slightly richer store than a flat JSON file may be worth it once this is actually scoped, but that decision belongs to whichever session builds this.
+
+### 15.3 The participation log
+
+A new section at the bottom of the weekly digest, a small table listing every event Job has marked Applied, not yet resolved to Over. Columns: event title (linked), registration or start date, submission or end date. This is purely a rendered view over the tracker store's state, the same "code renders from data, Claude touches none of it" principle that governs the rest of the digest. As events move to Over (15.4), they drop out of this table (or move to a separate small history section, a detail for the future build to decide).
+
+### 15.4 Lifecycle states
+
+Every event Job engages with moves through a small state machine, richer than the cache's own internal `seen` / `resurfaced` / `lapsed` housekeeping states (Section 7), which are about suppression, not participation:
+
+```
+seen -> tracked -> applied -> over
+```
+
+- `seen`: the default. buildathon-radar found it, Job has not acted on it.
+- `tracked`: Job clicked Track. It will keep reappearing in the digest as a reminder until it resolves further or its dates pass.
+- `applied`: Job clicked Applied. It now shows up in the participation log (15.3).
+- `over`: the event's own end date has passed. An event reaching `over` needs one more piece of input from Job that nothing in v1 or the FastAPI layer alone can infer: an outcome. The three outcomes Job wants to be able to record: did not participate, participated, participated and won. This is effectively a small per-event record Job could eventually manage from a dashboard (not scoped, not designed, just named here as the natural next surface once the state exists to show).
+
+### 15.5 Calendar integration
+
+Once a tracked or applied event has a reliable `event_start` (already populated by the cache restructure in this session), adding it to Job's calendar as a real calendar event is a small, clean addition, not a new pattern: Job already has a calendar-event-creation pattern working elsewhere in his stack, so this would reuse that rather than inventing a new integration. Natural trigger points: automatically on Track or Applied, or as a third button/link. Left for the future session to decide against whatever the existing calendar pattern's constraints turn out to be.
+
+### 15.6 Cross-source entity resolution: the key v2 data problem
+
+This is the hardest and most important data problem in the whole v2 vision, worth documenting carefully rather than glossing over.
+
+Once Cerebral Valley and Luma (Section 12's v2 backlog) are added as sources, the same real-world event will sometimes appear on more than one platform, under different URLs and, critically, under different title text. The concrete motivating example, drawn from real data already seen this season: **"Agentic Commerce Hackathon (Build agents that act, shop, book, renew and pay.)" on Devfolio** and a plausible **"Agentic Commerce Hackathon" listing on Luma** are the same event and must resolve to the same `event_id`, not two separate cache records that both get surfaced, scored, and shown as if they were different hackathons.
+
+This does not meaningfully occur in v1. Devpost and Devfolio rarely list the same event (they serve different audiences, global versus India-focused), so the composite `event_id` derivation built this session (Section 7, normalized host plus normalized title plus start date) has never yet had to resolve a genuine cross-source collision. That is exactly why real resolution logic is deferred rather than built now: designing it against a hypothetical is guesswork, and the risk of getting it wrong (either merging two genuinely different events, or failing to merge the same event twice) is high enough that it deserves real dual-source data to test against, not invented test cases.
+
+Candidate approaches to evaluate when that data exists, in rough order of complexity:
+
+- **(A) Hard normalization before hashing.** Extend the existing `_normalize_title` / `derive_event_id` approach (already in `fetcher.py`) more aggressively: stronger punctuation and filler-word stripping, maybe stemming, before combining with host and date into the composite id. Cheapest to build (no new infrastructure), but risks false collisions: two different hackathons with very similar generic names ("AI Hackathon 2026") and the same rough date could collide even though they are unrelated events.
+- **(B) Host plus date as the anchor, title as secondary confirmation.** Treat host and start date as the primary matching key (since a specific hackathon on a specific date run by a specific organiser is a strong signal on its own), and only use title similarity to confirm or reject a candidate match rather than to drive it. Reduces the false-collision risk of (A) somewhat, at the cost of needing a two-step matching process instead of one hash.
+- **(C) Fuzzy-match or LLM-assisted "are these the same event" comparison.** For candidate pairs that share a host and a nearby date but whose titles do not obviously match, ask an LLM (or use a string-similarity library) directly: are these the same event? Most flexible and most likely to get genuinely ambiguous cases right, but adds real cost (an extra call per candidate pair, at minimum) and a threshold to tune (how confident is confident enough to merge), and introduces exactly the kind of unverified-inference risk the anti-hallucination guard elsewhere in this project was built to avoid, so any LLM-assisted resolution step would need its own guard: a merge decision should probably require corroborating structured signal (matching host, dates within some window), not title similarity alone.
+
+The tradeoff across all three is the same shape: normalization alone risks false collisions, fuzzy or LLM-assisted matching adds cost and tuning and its own failure modes. The right choice should be made by looking at real observed collisions once v2 sources are live, not by picking one now on priors. The v1 cache is already structured to make whichever approach is chosen a drop-in change rather than another migration: `event_id` is already a composite (not a bare URL), and `urls` is already an array precisely so a second source's URL for the same event can be appended to an existing record rather than forcing a new one.
+
+### 15.7 Feedback (thumbs up or down): lowest priority, possibly not worth building
+
+Job considered a thumbs-up/thumbs-down control on each digest pick, to shape future scoring: more like this, less like this. Recorded here for completeness, flagged with a deliberate reservation rather than as a committed feature.
+
+The rubric (Section 5) is already hand-tunable in plain language: Job gives feedback in conversation ("exclude student hackathons," "boost corporate Bengaluru events," both real examples from this project's own history) and the system prompt gets edited directly. That loop is fast, transparent, and fully under Job's control. A thumbs-based preference-learning loop is deceptively complex to build well (how many signals before a preference is trusted, how does it avoid overfitting to a handful of recent hackathons, how does it interact with a rubric that is also being hand-edited at the same time) and risks quietly drifting the scoring in a direction that is harder to reason about than a plain-language rubric edit. For a personal, single-user tool, manual rubric tuning may genuinely be the better mechanism forever, not just for now.
+
+This is recorded as "evaluate whether this is worth building at all" when the time comes, not as a queued feature with an assumed yes.
+
+---
+
 ## Appendix A: recon evidence log (2026-07-13, run from jobpi)
 
 | Probe | Result |
