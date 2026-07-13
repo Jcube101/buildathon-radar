@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# buildathon-radar runtime state
+cache.json
+archive/
+scheduler_log.txt

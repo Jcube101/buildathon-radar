@@ -1,0 +1,698 @@
+{
+  "hits": {
+    "total": {
+      "value": 19
+    },
+    "hits": [
+      {
+        "_source": {
+          "country": "India",
+          "devfolio_official": null,
+          "featured": null,
+          "private": false,
+          "starts_at": "2026-07-18T03:30:00+00:00",
+          "hosted_by": null,
+          "hashtags": [],
+          "apply_mode": "both",
+          "city": "Bengaluru",
+          "timezone": "Asia/Calcutta",
+          "rating": 0,
+          "type": "HACKATHON",
+          "uuid": "9ca9be8320484be0840ad2f4771bc4f9",
+          "sponsor_tiers": [
+            {
+              "sponsors": [
+                {
+                  "name": "IEEE Computer Society",
+                  "about": null,
+                  "logo": "https://assets.devfolio.co/hackathons/9ca9be8320484be0840ad2f4771bc4f9/sponsors/0f35f646e6594081ba23a6903e22f8db/104.jpeg",
+                  "company": {
+                    "domain": "computer.org",
+                    "name": "IEEE Computer Society",
+                    "verified": false,
+                    "logo": null,
+                    "uuid": "b286b7a9442841178a19c3e79677f89a"
+                  },
+                  "position": 1,
+                  "uuid": "0f35f646e6594081ba23a6903e22f8db"
+                },
+                {
+                  "name": "Gemma",
+                  "about": null,
+                  "logo": "https://assets.devfolio.co/hackathons/9ca9be8320484be0840ad2f4771bc4f9/sponsors/9a00ebab160747059938e7ae2f0f1eef/383.png",
+                  "company": {
+                    "domain": "gemmaservices.org",
+                    "name": "Gemma",
+                    "verified": false,
+                    "logo": null,
+                    "uuid": "5047a4dd43a9440fb275f9b967a474bd"
+                  },
+                  "position": 2,
+                  "uuid": "9a00ebab160747059938e7ae2f0f1eef"
+                },
+                {
+                  "name": "Ramaiah Institute of Technology",
+                  "about": null,
+                  "logo": "https://assets.devfolio.co/hackathons/9ca9be8320484be0840ad2f4771bc4f9/sponsors/14be06ce6ac64f09b1df13f7d83e50d2/966.png",
+                  "company": {
+                    "domain": "msrit.edu",
+                    "name": "National Service Scheme",
+                    "verified": false,
+                    "logo": null,
+                    "uuid": "b7576a649d0449a793a77906f407877b"
+                  },
+                  "position": 3,
+                  "uuid": "14be06ce6ac64f09b1df13f7d83e50d2"
+                },
+                {
+                  "name": "Nexus spring of code",
+                  "about": null,
+                  "logo": "https://assets.devfolio.co/hackathons/9ca9be8320484be0840ad2f4771bc4f9/sponsors/378869c5b41247a0a0c35135b53e07d4/591.jpeg",
+                  "company": {
+                    "domain": "https://www.nsoc.in/",
+                    "name": "Nexus spring of code",
+                    "verified": false,
+                    "logo": null,
+                    "uuid": "50d99bb314e84988b326176a1c87f33e"
+                  },
+                  "position": 4,
+                  "uuid": "378869c5b41247a0a0c35135b53e07d4"
+                },
+                {
+                  "name": "Kaggle",
+                  "about": null,
+                  "logo": "https://assets.devfolio.co/hackathons/9ca9be8320484be0840ad2f4771bc4f9/sponsors/e5d424e1b6f94cf1a077888d07a14211/688.png",
+                  "company": {
+                    "domain": "kaggle.com",
+                    "name": "Kaggle",
+                    "verified": false,
+                    "logo": null,
+                    "uuid": "c7153f6234794f1cbe0d3b86a56be3de"
+                  },
+                  "position": 5,
+                  "uuid": "e5d424e1b6f94cf1a077888d07a14211"
+                },
+                {
+                  "name": "AI Mobile Coders",
+                  "about": null,
+                  "logo": "https://assets.devfolio.co/hackathons/9ca9be8320484be0840ad2f4771bc4f9/sponsors/01e97d2cd1ea43f5a6d26b51493ac980/908.jpeg",
+                  "company": {
+                    "domain": "https://aimobilecoders.com/",
+                    "name": "AI Mobile Coders",
+                    "verified": false,
+                    "logo": null,
+                    "uuid": "52499524abb1459688a3e4ca522aa79c"
+                  },
+                  "position": 6,
+                  "uuid": "01e97d2cd1ea43f5a6d26b51493ac980"
+                },
+                {
+                  "name": "Heapify Global Community",
+                  "about": null,
+                  "logo": "https://assets.devfolio.co/hackathons/9ca9be8320484be0840ad2f4771bc4f9/sponsors/76ce88632fc0463387338914c47451f5/855.png",
+                  "company": {
+                    "domain": "https://www.linkedin.com/in/heapify-global-community-7bb767414/",
+                    "name": "Heapify Global Community",
+                    "verified": false,
+                    "logo": null,
+                    "uuid": "b8b1474159644b419f47b6881a90dcac"
+                  },
+                  "position": 7,
+                  "uuid": "76ce88632fc0463387338914c47451f5"
+                },
+                {
+                  "name": "Eventopia",
+                  "about": null,
+                  "logo": "https://assets.devfolio.co/hackathons/9ca9be8320484be0840ad2f4771bc4f9/sponsors/ee090adcfe4048dc98ef02e8f7502f17/81.png",
+                  "company": {
+                    "domain": "eventopia.co",
+                    "name": "Eventopia",
+                    "verified": false,
+                    "logo": null,
+                    "uuid": "e8e4794fdf1d4834b75b95a551b638e9"
+                  },
+                  "position": 8,
+                  "uuid": "ee090adcfe4048dc98ef02e8f7502f17"
+                }
+              ],
+              "name": "Gold",
+              "width": 300,
+              "about": "",
+              "position": 1,
+              "uuid": "b0af4028872a44c098b6960aa3728bb7",
+              "height": null
+            }
+          ],
+          "themes": [
+            {
+              "name": "FinTech",
+              "verified": true,
+              "uuid": "10f3c52e650b4229a2dc2edcebff20db"
+            },
+            {
+              "name": "AI/ML",
+              "verified": true,
+              "uuid": "9d287d0c0870485a838efa02d5ecc06b"
+            }
+          ],
+          "hackathon_setting": {
+            "winner_announce_at": null,
+            "reg_starts_at": "2026-07-03T04:30:00+00:00",
+            "winner_announced": false,
+            "women_only": false,
+            "reg_ends_at": "2026-07-15T18:30:00+00:00",
+            "facebook": null,
+            "telegram": null,
+            "medium": null,
+            "instagram": null,
+            "linkedin": "https://www.linkedin.com/company/heapify-global-community",
+            "external_apply_url": null,
+            "primary_color": "#3186ff",
+            "uuid": "089b8df273bd413397ee41d2ace6329d",
+            "contact_email": "rohan8899chand@gmail.com",
+            "twitter": "https://x.com/Heapifyy",
+            "site": null,
+            "discord": null,
+            "review": false,
+            "slack": null,
+            "logo": "https://assets.devfolio.co/hackathons/9ca9be8320484be0840ad2f4771bc4f9/assets/logo/81.png",
+            "subdomain": "build-with-gemma-bengaluru-ai-sprint",
+            "farcaster": null
+          },
+          "ends_at": "2026-07-18T15:00:00+00:00",
+          "is_online": false,
+          "state": "Karnataka",
+          "slug": "build-with-gemma-bengaluru-ai-sprint",
+          "team_min": 2,
+          "themed": false,
+          "discover": false,
+          "participants_count": 715,
+          "hackathon_faqs": [
+            {
+              "question": "Contact Us",
+              "answer": "**Venkatesh Reddy K :  7411 582 857\nKarthik : 63613 95509\nRohan Chand M : 9900781694**\n\nWould love to clarify your doubts .",
+              "uuid": "c0c0dedabe6b4fc0baf5606d2ca0b4db"
+            },
+            {
+              "question": "Whatsapp Community Link",
+              "answer": "[https://chat.whatsapp.com/EBVS53dYKhD8LvbZl8NZqL](url)",
+              "uuid": "6f2d2440de224ff5933bf9718dc36fdc"
+            }
+          ],
+          "participants_details": [
+            {
+              "profile_image": "https://assets.devfolio.co/users/f30f569aeed24bb5b5ce1e20026f8ef1/avatar-b27167b3-35aa-4704-b965-df0d80430e36.jpeg",
+              "last_name": "GHOSH",
+              "first_name": "SOHAM",
+              "uuid": "f30f569aeed24bb5b5ce1e20026f8ef1",
+              "username": "sohamghosh1762"
+            },
+            {
+              "profile_image": "https://assets.devfolio.co/users/ea07db33192f4e0d89a7dff7c9ed78e0/avatar-1f031c08-331a-4c71-bbb4-e14cddfd2334.jpeg",
+              "last_name": "Sudhakar",
+              "first_name": "Sudarshan",
+              "uuid": "ea07db33192f4e0d89a7dff7c9ed78e0",
+              "username": "sudarshannn"
+            },
+            {
+              "profile_image": "https://assets.devfolio.co/users/97a9cf2d071b4f0493d97800cb694057/avatar-9ac6f264-5c6b-46c9-b9d6-e9bb16b603fb.jpeg",
+              "last_name": "kp",
+              "first_name": "Abhinav",
+              "uuid": "97a9cf2d071b4f0493d97800cb694057",
+              "username": "Abhinav_kp"
+            }
+          ],
+          "team_size": 4,
+          "verified": true,
+          "prizes": [
+            {
+              "parent_prize_uuid": null,
+              "name": "Overall Prize Money",
+              "is_sponsor_prize": false,
+              "uuid": "1bfdd449dc0f49159ab596b6dd39dc69",
+              "desc": ""
+            },
+            {
+              "parent_prize_uuid": null,
+              "name": "Runner Up",
+              "is_sponsor_prize": false,
+              "uuid": "79564371ed3545b397d86672e8f00da4",
+              "desc": ""
+            },
+            {
+              "parent_prize_uuid": null,
+              "name": "2nd Runner Up",
+              "is_sponsor_prize": false,
+              "uuid": "2a1a472e18a44d768e6b88105801c65e",
+              "desc": ""
+            },
+            {
+              "parent_prize_uuid": null,
+              "name": "AI Mobile Coders",
+              "is_sponsor_prize": false,
+              "uuid": "2ae0cece80de42fab2ac35913243e304",
+              "desc": ""
+            }
+          ],
+          "projects_submitted": 0,
+          "name": "Build with Gemma",
+          "tagline": "Bengaluru AI Sprint",
+          "location": "Ramaiah Institute of Technology, MSRIT Post, M S R Nagar, Mathikere, Bengaluru, Karnataka, India",
+          "judges": [],
+          "cover_img": "https://assets.devfolio.co/hackathons/9ca9be8320484be0840ad2f4771bc4f9/assets/cover/957.png",
+          "desc": "Build with Gemma : Bengaluru AI Sprint is a one-day, in-person  hackathon organized by Heapify Global Community in collaboration with the  IEEE Computational Intelligence Society (IEEE CIS) Bangalore Chapter  and the  Department of Information Science, MS Ramaiah Institute of Technology (MSRIT)  as part of the Build with Gemma initiative.\n\nThis hackathon brings together students, developers,  founders, and AI professionals to build innovative, real world applications powered by Gemma 4 . Participants will collaborate in teams to design and develop Gemma AI solutions  that address challenges in the SME & Financial AI domain.\n\nChallenges & Track of Hackathon - \n\nTrack 1: Gemma SME Cashflow Copilot\n\nBuild an AI powered financial assistant using Gemma that helps SMEs forecast cash flow, identify liquidity risks, automate invoice follow-ups, optimize payment schedules, and recommend actionable financial decisions.\n\nTrack 2: Gemma Financial Compliance & Risk Triage\n\nDevelop an intelligent compliance assistant that analyzes transactions, onboarding documents, and financial records to detect anomalies, assess risk, summarize findings, and generate compliance-ready reports for review teams.\n\nTrack 3: Gemma SME Growth & Advisory Agent\n\nCreate an AI business advisor that empowers SMEs with data-driven insights for pricing, revenue forecasting, supplier management, collections, operational planning, and strategic business growth through conversational AI.\n\nThroughout the event, participants will receive guidance from experienced mentors, interact with industry experts, and present their projects before an expert judging panel. The event is designed to encourage rapid prototyping, technical innovation, and practical problem-solving using Google' s latest open AI models .",
+          "status": "publish",
+          "user_hackathon": null,
+          "user_hackathon_reminder": null
+        }
+      },
+      {
+        "_source": {
+          "country": "India",
+          "devfolio_official": null,
+          "featured": null,
+          "private": false,
+          "starts_at": "2026-07-19T18:30:00+00:00",
+          "hosted_by": null,
+          "hashtags": [],
+          "apply_mode": "both",
+          "city": "Mumbai",
+          "timezone": "Asia/Calcutta",
+          "rating": 0,
+          "type": "HACKATHON",
+          "uuid": "bb54d442577e484b9166313a22c6e24d",
+          "sponsor_tiers": [],
+          "themes": [
+            {
+              "name": "Blockchain",
+              "verified": true,
+              "uuid": "106931c0a88e4e4893333524fe66ef5d"
+            },
+            {
+              "name": "HealthTech",
+              "verified": true,
+              "uuid": "75d24005cd344ddba77d53051adc4f2f"
+            },
+            {
+              "name": "FinTech",
+              "verified": true,
+              "uuid": "10f3c52e650b4229a2dc2edcebff20db"
+            }
+          ],
+          "hackathon_setting": {
+            "winner_announce_at": null,
+            "reg_starts_at": "2026-06-17T18:29:00+00:00",
+            "winner_announced": false,
+            "women_only": false,
+            "reg_ends_at": "2026-07-17T18:29:00+00:00",
+            "facebook": null,
+            "telegram": null,
+            "medium": null,
+            "instagram": null,
+            "linkedin": null,
+            "external_apply_url": null,
+            "primary_color": "#0693e3",
+            "uuid": "f1617ca81d4449019ca2a3de35218b7f",
+            "contact_email": "yiliwa5858@hotkev.com",
+            "twitter": null,
+            "site": null,
+            "discord": null,
+            "review": false,
+            "slack": null,
+            "logo": "https://assets.devfolio.co/hackathons/bb54d442577e484b9166313a22c6e24d/assets/logo/900.png",
+            "subdomain": "futureforge-hackathon",
+            "farcaster": null
+          },
+          "ends_at": "2026-07-20T18:30:00+00:00",
+          "is_online": false,
+          "state": "Maharashtra",
+          "slug": "futureforge-hackathon",
+          "team_min": 2,
+          "themed": false,
+          "discover": false,
+          "participants_count": 494,
+          "hackathon_faqs": [],
+          "participants_details": [
+            {
+              "profile_image": "https://assets.devfolio.co/users/86d7a87d1bd74d3fad7a85e5fb3dade8/avatar-cfad652b-20fe-4c97-8746-dfe091fc4f53.jpeg",
+              "last_name": "Teke",
+              "first_name": "Omkar",
+              "uuid": "86d7a87d1bd74d3fad7a85e5fb3dade8",
+              "username": "omkarrr_75"
+            },
+            {
+              "profile_image": "https://assets.devfolio.co/users/1b1b9acf998c49f7beab4c474d564443/avatar-1e4d4d97-7d6a-4045-a580-2bacc1575ce6.jpeg",
+              "last_name": "Elbhar",
+              "first_name": "Keshaav",
+              "uuid": "1b1b9acf998c49f7beab4c474d564443",
+              "username": "KeshaavE"
+            },
+            {
+              "profile_image": "https://assets.devfolio.co/users/709a5cc2dee64b37bcee0b70a9f76016/avatar-2928c5b1-6fa3-4d9f-8a0d-797092260f70.jpeg",
+              "last_name": "Malik",
+              "first_name": "Himanshu",
+              "uuid": "709a5cc2dee64b37bcee0b70a9f76016",
+              "username": "0xHimanshuM685"
+            }
+          ],
+          "team_size": 3,
+          "verified": true,
+          "prizes": [
+            {
+              "parent_prize_uuid": null,
+              "name": "Winner",
+              "is_sponsor_prize": false,
+              "uuid": "003d32f992774ccbabe042d96f7c060c",
+              "desc": ""
+            }
+          ],
+          "projects_submitted": 0,
+          "name": "FutureForge Hackathon 2026",
+          "tagline": "Dream Big. Build Bigger.",
+          "location": "Mumbai, Maharashtra, India",
+          "judges": [],
+          "cover_img": "https://assets.devfolio.co/hackathons/bb54d442577e484b9166313a22c6e24d/assets/cover/439.png",
+          "desc": "FutureForge Hackathon 2026 is a virtual innovation challenge designed to bring together developers, designers, builders, and technology enthusiasts from across the globe. Participants will collaborate, create, and showcase impactful solutions that address real-world problems using emerging technologies.\n\nWhether you're passionate about AI, Web Development, Blockchain, Cybersecurity, Cloud Computing, or Open Innovation, this hackathon provides a platform to transform ideas into working products, learn from fellow innovators, and gain valuable hands-on experience.\n\nJoin us for an exciting journey of creativity, problem-solving, and innovation as we forge the future, one build at a time.\n\nWhat to Expect\n\n\ud83d\ude80 Build innovative projects\n\ud83e\udd1d Collaborate with talented peers\n\ud83d\udca1 Solve real-world challenges\n\ud83c\udfc6 Compete for exciting prizes\n\ud83c\udf10 Network with the tech community\n\ud83d\udcda Learn and grow through practical experience",
+          "status": "publish",
+          "user_hackathon": null,
+          "user_hackathon_reminder": null
+        }
+      },
+      {
+        "_source": {
+          "country": "India",
+          "devfolio_official": null,
+          "featured": null,
+          "private": false,
+          "starts_at": "2026-07-24T03:30:00+00:00",
+          "hosted_by": null,
+          "hashtags": [],
+          "apply_mode": "both",
+          "city": "Kalyani",
+          "timezone": "Asia/Calcutta",
+          "rating": 0,
+          "type": "HACKATHON",
+          "uuid": "8326c237e2cf4672b3194fe05cb56f57",
+          "sponsor_tiers": [
+            {
+              "sponsors": [
+                {
+                  "name": "Devfolio",
+                  "about": null,
+                  "logo": "https://assets.devfolio.co/hackathons/8326c237e2cf4672b3194fe05cb56f57/sponsors/f77484331cf04abf97a9e09c209f60ed/834.jpeg",
+                  "company": {
+                    "domain": "devfolio.co",
+                    "name": "Devfolio",
+                    "verified": false,
+                    "logo": null,
+                    "uuid": "89b098bdc57d448badcd5667ba31dcd7"
+                  },
+                  "position": 1,
+                  "uuid": "f77484331cf04abf97a9e09c209f60ed"
+                }
+              ],
+              "name": "Gold",
+              "width": 200,
+              "about": "",
+              "position": 1,
+              "uuid": "3b969652c245490fa0d7c17ff981922c",
+              "height": null
+            },
+            {
+              "sponsors": [
+                {
+                  "name": "hacktropica",
+                  "about": null,
+                  "logo": "https://assets.devfolio.co/hackathons/8326c237e2cf4672b3194fe05cb56f57/sponsors/cf81a8a544e149a4a7ce516b0a99f336/800.png",
+                  "company": {
+                    "domain": "https://www.hacktropica.xyz/",
+                    "name": "Modisconto",
+                    "verified": false,
+                    "logo": null,
+                    "uuid": "758f7924de514019a62ff332b378d120"
+                  },
+                  "position": 1,
+                  "uuid": "cf81a8a544e149a4a7ce516b0a99f336"
+                },
+                {
+                  "name": "FIEM Student Chapter",
+                  "about": null,
+                  "logo": "https://assets.devfolio.co/hackathons/8326c237e2cf4672b3194fe05cb56f57/sponsors/2d9839782aca4b13b396230235652f74/250.jpeg",
+                  "company": {
+                    "domain": "https://futureeducation.in/fiem/",
+                    "name": "FIEM Student Chapter",
+                    "verified": false,
+                    "logo": null,
+                    "uuid": "64508a33428148cb83f54e9973a4ec3c"
+                  },
+                  "position": 2,
+                  "uuid": "2d9839782aca4b13b396230235652f74"
+                }
+              ],
+              "name": "Community Partner",
+              "width": 200,
+              "about": "",
+              "position": 5,
+              "uuid": "012809dee49e4dc2a03427683de39f23",
+              "height": null
+            },
+            {
+              "sponsors": [
+                {
+                  "name": "LNC community",
+                  "about": null,
+                  "logo": "https://assets.devfolio.co/hackathons/8326c237e2cf4672b3194fe05cb56f57/sponsors/ababe8b6465946f8be1abde961ff6a99/663.png",
+                  "company": {
+                    "domain": "https://linktr.ee/LNC_COMMUNITY",
+                    "name": "LNC Community",
+                    "verified": false,
+                    "logo": null,
+                    "uuid": "c255f83842c74f2e882d3b7476c44f6d"
+                  },
+                  "position": 1,
+                  "uuid": "ababe8b6465946f8be1abde961ff6a99"
+                }
+              ],
+              "name": "Media and Technical Partner",
+              "width": 250,
+              "about": "",
+              "position": 4,
+              "uuid": "b701b1f1d8354b55b9cacd09b4d8812a",
+              "height": null
+            },
+            {
+              "sponsors": [
+                {
+                  "name": ".xyz",
+                  "about": null,
+                  "logo": "https://assets.devfolio.co/hackathons/8326c237e2cf4672b3194fe05cb56f57/sponsors/7111bc696f5c4e029866d367f80159dd/294.png",
+                  "company": {
+                    "domain": "gen.xyz",
+                    "name": "XYZ",
+                    "verified": false,
+                    "logo": "https://api.devfolio.co/api/miscellaneous/logo/gen.xyz.png",
+                    "uuid": "2e303093953941c4be5486ced5bf992a"
+                  },
+                  "position": 1,
+                  "uuid": "7111bc696f5c4e029866d367f80159dd"
+                }
+              ],
+              "name": "Domain Sponsor",
+              "width": 200,
+              "about": "",
+              "position": 3,
+              "uuid": "b137d24db8084dd8b662d468183353de",
+              "height": null
+            },
+            {
+              "sponsors": [
+                {
+                  "name": "N8N",
+                  "about": null,
+                  "logo": "https://assets.devfolio.co/hackathons/8326c237e2cf4672b3194fe05cb56f57/sponsors/74287e9daeb344ac81764b62ccc3a6e0/614.png",
+                  "company": {
+                    "domain": "https://n8n.io/?ps_partner_key=ZWFiZDIyYjkwZTFl&ps_xid=K1hdnRGXXLyU3A&gsxid=K1hdnRGXXLyU3A&gspk=ZWFiZDIyYjkwZTFl&gad_source=1",
+                    "name": "N8N",
+                    "verified": false,
+                    "logo": null,
+                    "uuid": "0ce930bca6644419a9d8f9d320d1b5ce"
+                  },
+                  "position": 1,
+                  "uuid": "74287e9daeb344ac81764b62ccc3a6e0"
+                }
+              ],
+              "name": "In Kind Sponsor",
+              "width": 250,
+              "about": "",
+              "position": 2,
+              "uuid": "c44c0140175248d1933b0362eccc7a35",
+              "height": null
+            }
+          ],
+          "themes": [
+            {
+              "name": "HealthTech",
+              "verified": true,
+              "uuid": "75d24005cd344ddba77d53051adc4f2f"
+            },
+            {
+              "name": "AI/ML",
+              "verified": true,
+              "uuid": "9d287d0c0870485a838efa02d5ecc06b"
+            },
+            {
+              "name": "Blockchain",
+              "verified": true,
+              "uuid": "106931c0a88e4e4893333524fe66ef5d"
+            }
+          ],
+          "hackathon_setting": {
+            "winner_announce_at": null,
+            "reg_starts_at": "2026-06-24T06:30:00+00:00",
+            "winner_announced": false,
+            "women_only": false,
+            "reg_ends_at": "2026-07-18T18:29:00+00:00",
+            "facebook": null,
+            "telegram": null,
+            "medium": null,
+            "instagram": "https://www.instagram.com/hyperfusionv1?igsh=MXJzY2N1dWx1cXRtNA==",
+            "linkedin": "https://www.linkedin.com/company/hyperfusion2k26/",
+            "external_apply_url": null,
+            "primary_color": "#6c63ff",
+            "uuid": "bfb423cc0c09489191003e58b38574d4",
+            "contact_email": "hyperfusion2k26@gmail.com",
+            "twitter": "https://x.com/HyperFusionV1?s=20",
+            "site": "https://hyper-fusion-kappa.vercel.app/",
+            "discord": "https://discord.gg/YqmhfzSbe",
+            "review": false,
+            "slack": null,
+            "logo": "https://assets.devfolio.co/hackathons/8326c237e2cf4672b3194fe05cb56f57/assets/logo/175.jpeg",
+            "subdomain": "hyperfusion",
+            "farcaster": null
+          },
+          "ends_at": "2026-07-24T11:15:00+00:00",
+          "is_online": false,
+          "state": "West Bengal",
+          "slug": "hyperfusion",
+          "team_min": 2,
+          "themed": false,
+          "discover": false,
+          "participants_count": 500,
+          "hackathon_faqs": [
+            {
+              "question": "1. Who can participate in HyperFusion?",
+              "answer": "HyperFusion is open to students from all colleges and universities. Participants from all academic backgrounds are welcome.",
+              "uuid": "73853d5281dd454ba11701b28451a80f"
+            },
+            {
+              "question": "2.Is there any registration fee?",
+              "answer": "No, participation in HyperFusion is completely free of cost.",
+              "uuid": "9f07a6836c9343de9dd27bd64f162820"
+            },
+            {
+              "question": "3.Can I participate individually?",
+              "answer": "Participants are encouraged to form teams. Individual registrations are allowed, and team formation opportunities may be provided before the event.",
+              "uuid": "182740778aa94097a8befbecd002b64f"
+            },
+            {
+              "question": "4.What is the maximum team size?",
+              "answer": "A team can consist of up to 4 members.",
+              "uuid": "5a567d8844dd46bab4518c73e3057b6d"
+            },
+            {
+              "question": "5. Can members of a team belong to different colleges?",
+              "answer": "yes, cross-college teams are allowed.",
+              "uuid": "a374d86f577144ecba563a4ab9d5f119"
+            },
+            {
+              "question": "6.What should I bring to the hackathon?",
+              "answer": "Participants should bring their laptops, chargers, college ID cards, and **extension board** for their project.",
+              "uuid": "452798b88ac34114a72ade3267fe6d5d"
+            },
+            {
+              "question": "7.Are beginners allowed to participate?",
+              "answer": "Absolutely. HyperFusion welcomes both beginners and experienced hackers.",
+              "uuid": "14df51ac5d8248e3bb08e062a98abd5a"
+            },
+            {
+              "question": "8.What kind of projects can be built?",
+              "answer": "Participants can build projects across various domains, including AI/ML, Web Development, Mobile Applications, Cybersecurity, Healthcare, Sustainability, FinTech, and more.",
+              "uuid": "fae3df0b9c15493881c4fe6bf0803ff8"
+            },
+            {
+              "question": "9.Will mentors be available during the hackathon?",
+              "answer": "Yes. Industry experts, faculty members, and experienced mentors will be available to guide participants throughout the event.",
+              "uuid": "70da1cb064234abb97c559c3e479e27a"
+            },
+            {
+              "question": "10.Can we start working on our project before the hackathon?",
+              "answer": "No. All coding and development must begin after the official hackathon kickoff. However, participants may familiarize themselves with tools and technologies beforehand.",
+              "uuid": "1b76ff5ad724481194d1e166fe7ae8c7"
+            },
+            {
+              "question": "11.How will projects be judged?",
+              "answer": "Projects will be evaluated based on innovation, technical implementation, problem-solving approach, impact, design, and presentation.",
+              "uuid": "cf4b50b732354dceb083d2f2daae0819"
+            },
+            {
+              "question": "12.Will certificates be provided?",
+              "answer": "Yes. Participation certificates will be provided to all eligible participants, and special certificates will be awarded to winners and outstanding performers.",
+              "uuid": "d2bad5a011fe41f39d01c419a4c493fe"
+            },
+            {
+              "question": "13.What happens if I don't have a team?",
+              "answer": "Don't worry! We will provide opportunities for participants to connect and form teams before the hackathon begins.",
+              "uuid": "86099411cc974d3c94a84fa54515a62c"
+            },
+            {
+              "question": "14. Will food and refreshments be provided?",
+              "answer": "Yes, meals and refreshments will be provided to all registered participants during the event.",
+              "uuid": "db577991af76493dbd7e144402ff987b"
+            },
+            {
+              "question": "15. How can I contact the organizers?",
+              "answer": "For any queries, participants can reach out through the official communication channels mentioned on the event page.",
+              "uuid": "8fa31dc5b2334b8981bb6629d4741436"
+            }
+          ],
+          "participants_details": [
+            {
+              "profile_image": "https://assets.devfolio.co/users/a3310a137309453689694f1709fce035/avatar-6db111cb-bd22-4639-9f32-f7bcb3684cd0.jpeg",
+              "last_name": "Ghosh",
+              "first_name": "Sushovan",
+              "uuid": "a3310a137309453689694f1709fce035",
+              "username": "Sushovan_Ghosh"
+            },
+            {
+              "profile_image": "https://assets.devfolio.co/users/2db88aa0af5049ed8f384fdba146a9b9/avatar-42146153-0634-4396-b217-6ab12b85f7a8.jpeg",
+              "last_name": "Dey",
+              "first_name": "Soumyadeep",
+              "uuid": "2db88aa0af5049ed8f384fdba146a9b9",
+              "username": "SoumyaEXE"
+            },
+            {
+              "profile_image": "https://assets.devfolio.co/users/6a431e4374dd45e8ae0022f497d3ec68/avatar-45babd88-59ae-4186-ad86-88afa5405987.jpeg",
+              "last_name": "Sarkar",
+              "first_name": "Archishman",
+              "uuid": "6a431e4374dd45e8ae0022f497d3ec68",
+              "username": "Archishman05"
+            }
+          ],
+          "team_size": 4,
+          "verified": true,
+          "prizes": [],
+          "projects_submitted": 0,
+          "name": "HyperFusion",
+          "tagline": "The Ultimate Innovation Playground",
+          "location": "JIS College of Engineering, Barrackpore - Kalyani Expressway, Block A5, Block A, Kalyani, West Bengal, India",
+          "judges": [],
+          "cover_img": "https://assets.devfolio.co/hackathons/8326c237e2cf4672b3194fe05cb56f57/assets/cover/941.jpeg",
+          "desc": "\ud83d\ude80 Welcome to HyperFusion 2K26, an 8-hour offline hackathon organized by the Department of Computer Science & Engineering, JIS College of Engineering, Kalyani, West Bengal.\n\nHyperFusion is a platform where passionate developers, designers, and innovators come together to collaborate, solve real-world challenges, and build impactful technology solutions. Whether you're a first-time hacker or an experienced participant, HyperFusion is your opportunity to learn, create, and showcase your skills.\n\n\ud83d\udcc5 Event Details\n\ud83d\udccd Location: JIS College of Engineering, Kalyani, West Bengal, India\n\u23f0 Duration: 8 Hours\n\ud83d\udcdd Registration Deadline: 18 July 2026\n\ud83d\udcbb Hackathon Date: 24 July 2026\n\ud83d\udc65 Team Size: 2\u20134 Members\n\ud83c\udf93 Eligibility: Open to all college students\n\nThe event serves as a platform for bright minds from diverse backgrounds to come together and develop impactful solutions to real-world challenges. Through intensive ideation, mentorship, teamwork, and innovation, participants will transform creative concepts into functional prototypes capable of driving meaningful change.\n\nAt HyperFusion, we believe that innovation thrives at the intersection of knowledge, creativity, and determination. The hackathon encourages participants to explore emerging technologies, enhance their technical skills, and engage with a vibrant community of innovators and industry professionals.\n\nWhether you are an experienced hacker or a first-time participant, HyperFusion offers a unique opportunity to learn, build, network, and compete in an environment that celebrates technological advancement and entrepreneurial thinking.\n\nJoin us as we fuse ideas, technology, and talent to shape the future.",
+          "status": "publish",
+          "user_hackathon": null,
+          "user_hackathon_reminder": null
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "hackathons": [
+    {
+      "id": 29541,
+      "title": "Build with Gemini XPRIZE",
+      "displayed_location": {
+        "icon": "globe",
+        "location": "Online"
+      },
+      "open_state": "open",
+      "thumbnail_url": "//d112y698adiu2z.cloudfront.net/photos/production/challenge_thumbnails/004/686/462/datas/medium_square.png",
+      "analytics_identifier": "Build with Gemini XPRIZE (29541)",
+      "url": "https://xprize.devpost.com/",
+      "time_left_to_submission": "about 1 month left",
+      "submission_period_dates": "May 19 - Aug 17, 2026",
+      "themes": [
+        {
+          "id": 6,
+          "name": "Machine Learning/AI"
+        },
+        {
+          "id": 19,
+          "name": "Education"
+        },
+        {
+          "id": 11,
+          "name": "Productivity"
+        }
+      ],
+      "prize_amount": "$<span data-currency-value>2,000,000</span>",
+      "prizes_counts": {
+        "cash": 11,
+        "other": 0
+      },
+      "registrations_count": 19147,
+      "featured": false,
+      "organization_name": "XPRIZE",
+      "winners_announced": false,
+      "submission_gallery_url": "https://xprize.devpost.com/project-gallery",
+      "start_a_submission_url": "https://xprize.devpost.com/challenges/start_a_submission",
+      "invite_only": false,
+      "eligibility_requirement_invite_only_description": null,
+      "managed_by_devpost_badge": true
+    },
+    {
+      "id": 29966,
+      "title": "Global AI Hackathon Series with Qwen Cloud ",
+      "displayed_location": {
+        "icon": "globe",
+        "location": "Online"
+      },
+      "open_state": "open",
+      "thumbnail_url": "//d112y698adiu2z.cloudfront.net/photos/production/challenge_thumbnails/004/706/870/datas/medium_square.png",
+      "analytics_identifier": "Global AI Hackathon Series with Qwen Cloud  (29966)",
+      "url": "https://qwencloud-hackathon.devpost.com/",
+      "time_left_to_submission": "8 days left",
+      "submission_period_dates": "May 26 - Jul 20, 2026",
+      "themes": [
+        {
+          "id": 6,
+          "name": "Machine Learning/AI"
+        },
+        {
+          "id": 18,
+          "name": "Design"
+        },
+        {
+          "id": 11,
+          "name": "Productivity"
+        }
+      ],
+      "prize_amount": "$<span data-currency-value>45,000</span>",
+      "prizes_counts": {
+        "cash": 7,
+        "other": 0
+      },
+      "registrations_count": 7722,
+      "featured": true,
+      "organization_name": "Alibaba Cloud",
+      "winners_announced": false,
+      "submission_gallery_url": "https://qwencloud-hackathon.devpost.com/project-gallery",
+      "start_a_submission_url": "https://qwencloud-hackathon.devpost.com/challenges/start_a_submission",
+      "invite_only": false,
+      "eligibility_requirement_invite_only_description": null,
+      "managed_by_devpost_badge": true
+    },
+    {
+      "id": 29613,
+      "title": "CockroachDB \u00d7 AWS Hackathon - Build with Agentic Memory",
+      "displayed_location": {
+        "icon": "globe",
+        "location": "Online"
+      },
+      "open_state": "open",
+      "thumbnail_url": "//d112y698adiu2z.cloudfront.net/photos/production/challenge_thumbnails/004/649/552/datas/medium_square.png",
+      "analytics_identifier": "CockroachDB \u00d7 AWS Hackathon - Build with Agentic Memory (29613)",
+      "url": "https://cockroachdb-ai.devpost.com/",
+      "time_left_to_submission": "about 1 month left",
+      "submission_period_dates": "Jun 30 - Aug 18, 2026",
+      "themes": [
+        {
+          "id": 6,
+          "name": "Machine Learning/AI"
+        },
+        {
+          "id": 28,
+          "name": "Databases"
+        },
+        {
+          "id": 2,
+          "name": "DevOps"
+        }
+      ],
+      "prize_amount": "$<span data-currency-value>8,750</span>",
+      "prizes_counts": {
+        "cash": 3,
+        "other": 0
+      },
+      "registrations_count": 1308,
+      "featured": true,
+      "organization_name": "Cockroach Labs",
+      "winners_announced": false,
+      "submission_gallery_url": "https://cockroachdb-ai.devpost.com/project-gallery",
+      "start_a_submission_url": "https://cockroachdb-ai.devpost.com/challenges/start_a_submission",
+      "invite_only": false,
+      "eligibility_requirement_invite_only_description": null,
+      "managed_by_devpost_badge": true
+    }
+  ],
+  "meta": {
+    "total_count": 69,
+    "per_page": 40,
+    "fuzzy": false
+  }
+}
