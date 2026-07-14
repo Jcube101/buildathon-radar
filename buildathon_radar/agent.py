@@ -15,7 +15,9 @@ ALLOWED_TIERS = {"must_see", "worth_a_look", "radar"}
 
 PERSONA = """You are the filtering engine for Buildathon Radar, a personal AI agent built for an AI product manager based in Bengaluru, India. He builds with Claude and Gemini, cares deeply about AI agents, LLM tooling, and on-device AI, and wants to attend high-signal hackathons, buildathons, and builder showcases.
 
-He has repeatedly missed exactly two kinds of event because discovery was left to chance: prestigious AI-lab or big-tech events held in Bengaluru, and India-wide flagship AI events. He has also personally won a notable global online buildathon before, so prestigious online events matter to him too and must not be buried just for being remote. Your job is to make sure nothing in these classes slips past him again."""
+He has repeatedly missed exactly two kinds of event because discovery was left to chance: prestigious AI-lab or big-tech events held in Bengaluru, and India-wide flagship AI events. He has also personally won a notable global online buildathon before, so prestigious online events matter to him too and must not be buried just for being remote. Your job is to make sure nothing in these classes slips past him again.
+
+Sources now include Luma and Cerebral Valley alongside Devpost and Devfolio, which also surface meetups, community demo nights, and builder showcases, not just formal hackathons. These are valid event types too when they meet the theme and geography bar below. Do not auto-demote a well-matched meetup or showcase just because its title lacks the word "hackathon"."""
 
 EXCLUSIONS = """Apply these hard exclusions before you score anything. If any of these apply to an event, exclude it completely: do not place it in any tier, and count it toward skipped_count instead. A high theme, host, or prize score never overrides an exclusion below.
 
@@ -31,7 +33,7 @@ RUBRIC = """Score every surviving event (after the exclusions above) from 0 to 1
 
 2. Geography (0 to 30): the strong local boost is reserved for corporate or company-hosted in-person Bengaluru events, meaning a company, startup, or AI lab is running or clearly headlining the event, not a student or college co-host (student and college-hosted events are excluded outright under exclusion 1 above, regardless of geography). A corporate-hosted in-person Bengaluru event scores 26 to 30. A corporate-hosted in-person event elsewhere in India scores 14 to 22. Online and open to participants in India (this covers essentially all global online hackathons, since they accept entries worldwide) scores 8 to 14, unless excluded under exclusion 2 above for requiring an India-inaccessible platform. In-person outside India that is not travel-worthy scores 0 to 5. If location is unclear, score at most 8.
 
-3. Host prestige (0 to 25): a major AI lab or big tech company (Anthropic, Google or DeepMind, OpenAI, Meta, Microsoft, an XPRIZE-tier organiser) scores 20 to 25. A major startup, unicorn, or large developer community (Razorpay, MLH tier) scores 12 to 19. An unknown or minor host scores 0 to 8.
+3. Host prestige (0 to 25): a major AI lab or big tech company (Anthropic, Google or DeepMind, OpenAI, Meta, Microsoft, an XPRIZE-tier organiser) scores 20 to 25. A major startup, unicorn, or large developer community (Razorpay, MLH tier) scores 12 to 19. An unknown or minor host scores 0 to 8. If an event's themes list includes the tag "Cerebral Valley Featured," that means Cerebral Valley's own editorial team hand-picked it as a highlight; treat that tag as a modest additional positive signal within this same host prestige component, a point or two on top of whatever the host organization itself would otherwise score, not a separate axis and not a full tier jump on its own.
 
 4. Scale and signal (0 to 10): a large prize pool, a high registration count, a "managed by Devpost" badge, or verified Devfolio themes each support a score up to 10.
 

@@ -68,6 +68,22 @@ class TestRubricContent:
         assert "radar: score 35 to 49" in agent.SYSTEM_PROMPT
         assert "at most 12 picks" in agent.SYSTEM_PROMPT
 
+    def test_luma_and_cerebral_valley_sources_named(self):
+        assert "Luma" in agent.SYSTEM_PROMPT
+        assert "Cerebral Valley" in agent.SYSTEM_PROMPT
+
+    def test_meetups_and_showcases_legitimized(self):
+        assert "meetup" in agent.SYSTEM_PROMPT.lower()
+        assert "showcase" in agent.SYSTEM_PROMPT.lower()
+
+    def test_cerebral_valley_featured_tag_credited_within_host_prestige(self):
+        assert "Cerebral Valley Featured" in agent.SYSTEM_PROMPT
+        # must appear inside the host prestige component, not as a new axis
+        host_prestige_start = agent.SYSTEM_PROMPT.find("Host prestige (0 to 25)")
+        next_component_start = agent.SYSTEM_PROMPT.find("Scale and signal (0 to 10)")
+        tag_index = agent.SYSTEM_PROMPT.find("Cerebral Valley Featured")
+        assert host_prestige_start < tag_index < next_component_start
+
 
 class TestEmptyInput:
     def test_empty_items_never_calls_client(self):
