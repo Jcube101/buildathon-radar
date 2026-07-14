@@ -1,0 +1,150 @@
+{
+  "detail": "Events retrieved successfully",
+  "events": [
+    {
+      "id": "640b674a-cc98-46e2-ad4a-e7d699a97f1e",
+      "name": "fal x Sequoia 72-Hour Video Hackathon",
+      "description": "A 72-hour global sprint will bring together creative technologists, filmmakers, developers, and builders to experiment with generative video and AI-native storytelling, featuring workshops, talks, and mentorship from leading industry creators and engineers with substantial token budgets and competitive prizes on the line.",
+      "descriptionSummary": "Creative technologists, filmmakers, and developers will tackle generative video and AI storytelling over 72 hours with mentorship from industry leaders, hands-on workshops, and competitive prizes.",
+      "startDateTime": "2026-07-18 02:00:00",
+      "endDateTime": "2026-07-20 10:00:00",
+      "url": "https://cerebralvalley.ai/e/fal-x-sequoia-virtual-hackathon",
+      "location": "Remote",
+      "venue": null,
+      "type": "HACKATHON",
+      "CVEvent": true,
+      "status": "featured",
+      "imageUrl": "https://d3d8wlnuivx0vo.cloudfront.net/2025-11-27T05:26:50_866Z-Need%20Feature%20Image-cv",
+      "featuredStartTime": "2026-07-01 04:00:00",
+      "featuredEndTime": "2026-07-20 04:00:00",
+      "platformEventData": {
+        "id": "8a063a27-4e6e-441e-8f9c-c927e1f8a534",
+        "title": "fal x Sequoia 72-Hour Video Hackathon",
+        "slug": "fal-x-sequoia-virtual-hackathon",
+        "startDateTime": "2026-07-17 19:00:00",
+        "endDateTime": "2026-07-20 03:00:00",
+        "description": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"marks\":[{\"type\":\"bold\"}],\"text\":\"2026 marks a turning point for creative technology.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Generative video is emerging as a new creative primitive, reshaping how stories are imagined, produced, and shared across film, advertising, education, entertainment, and the internet at large.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"The \"},{\"type\":\"text\",\"marks\":[{\"type\":\"bold\"}],\"text\":\"fal x Sequoia Video Hackathon\"},{\"type\":\"text\",\"text\":\" is a\"},{\"type\":\"text\",\"marks\":[{\"type\":\"bold\"}],\"text\":\" 72-hour\"},{\"type\":\"text\",\"text\":\" global build sprint for creative technologists, filmmakers, developers, designers, and creators pushing the frontier of AI-native storytelling.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Think Cannes or Sundance for the tinkerers, builders, dreamers, and hackers: a festival-meets-hackathon for people experimenting with new tools, testing frontier models, prototyping strange ideas, and building original video work that would have taken giant teams and budgets to produce before.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"The event will begin with workshops, talks, and partner programming, followed by a 72-hour sprint where participants will create and submit short-form video projects with generous token budgets and competitive prizes.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Expect leading AI creators, creative engineers, filmmakers, and builders from across the industry. Judges, mentors, speakers, partners, and prize details will be announced soon.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"marks\":[{\"type\":\"italic\"}],\"text\":\"Note: This event is fully virtual. Space is limited. Maximum team size is four. All participants must apply and be approved to attend.\"},{\"type\":\"hardBreak\"},{\"type\":\"hardBreak\"},{\"type\":\"text\",\"marks\":[{\"type\":\"italic\"}],\"text\":\"Applications for this event will be closing on July 16th. If you or your team would like to participate in this event, please apply by end of day July 15th to be considered for the competition.\"}]}]}",
+        "descriptionSummary": "Developers, filmmakers, and creative technologists will sprint for 72 hours to build AI-native video projects with leading industry builders and mentors judging the work. This global hackathon-festival hybrid will showcase frontier generative video experimentation with generous budgets and competitive prizes, attracting creators pushing the boundaries of what's possible with emerging AI storytelling tools.",
+        "timeZone": "America/Los_Angeles",
+        "city": "Remote",
+        "approvalRequired": true,
+        "isPlatformHackathon": true,
+        "showLocationBeforeApproval": true,
+        "location": "Remote",
+        "venue": "",
+        "hosts": [
+          {
+            "eventId": "8a063a27-4e6e-441e-8f9c-c927e1f8a534",
+            "userId": "user_3EZ4wlAAdHZerHSde56JxzNp5HZ",
+            "role": "co-host",
+            "hidden": false,
+            "orderIndex": 5,
+            "createdAt": "2026-06-02 04:09:57.531038",
+            "updatedAt": "2026-07-14 15:04:41.732972",
+            "userProfile": {
+              "userId": "user_3EZ4wlAAdHZerHSde56JxzNp5HZ",
+              "firstName": "fal",
+              "lastName": "",
+              "avatarUrl": "https://cdn.cerebralvalley.ai/2026-06-02T04:09:20_807Z-profile-image",
+              "handle": "fal"
+            }
+          },
+          {
+            "eventId": "8a063a27-4e6e-441e-8f9c-c927e1f8a534",
+            "userId": "user_3EZ5oW9R9TQIC8lXjsdKoTaG9eH",
+            "role": "co-host",
+            "hidden": false,
+            "orderIndex": 6,
+            "createdAt": "2026-06-02 04:12:08.660461",
+            "updatedAt": "2026-07-14 15:04:41.734077",
+            "userProfile": {
+              "userId": "user_3EZ5oW9R9TQIC8lXjsdKoTaG9eH",
+              "firstName": "Sequoia Capital",
+              "lastName": "",
+              "avatarUrl": "https://cdn.cerebralvalley.ai/2026-06-02T04:11:51_037Z-profile-image",
+              "handle": "sequoia"
+            }
+          }
+        ],
+        "media": [
+          {
+            "id": "a6216684-b876-4e07-9742-6a2e6e9c1777",
+            "eventId": "8a063a27-4e6e-441e-8f9c-c927e1f8a534",
+            "mediaLocationType": "main",
+            "mediaType": "gif",
+            "url": "https://cdn.cerebralvalley.ai/2026-06-12T17:20:25_325Z-upload",
+            "thumbnailUrl": "https://cdn.cerebralvalley.ai/thumbnail-2026-06-12T17:20:25_325Z-upload",
+            "orderIndex": 0,
+            "createdAt": "2026-06-12 19:16:12.205796",
+            "updatedAt": "2026-07-14 15:04:41.776418"
+          }
+        ]
+      }
+    },
+    {
+      "id": "7c044429-d91a-4c35-ae14-f739d7e36a9c",
+      "name": "The Future of Agentic AI in Healthcare - Abridge x Anthropic x Lightspeed",
+      "description": "Abridge will host a hackathon where you'll build AI agents to solve real clinical workflows across 300+ health systems, working directly with ML scientists, healthcare workers, and clinical engineers from Abridge, Anthropic, and Lightspeed. You'll tackle one of healthcare's hardest problems\u2014automating everything from clinical trial matching to prior authorization\u2014with actual clinician feedback and the chance to ship something production-ready.",
+      "descriptionSummary": "Top ML scientists and clinical engineers from Abridge, Anthropic, and Lightspeed will guide you through building AI agents that tackle real healthcare automation challenges affecting 300+ health systems, from clinical trial matching to prior authorization. You'll get direct feedback from actual clinicians and potentially ship production-ready solutions addressing some of healthcare's most pressing workflow problems.",
+      "startDateTime": "2026-07-18 23:00:00",
+      "endDateTime": "2026-07-19 12:00:00",
+      "url": "https://cerebralvalley.ai/e/abridge-hackathon",
+      "location": "San Francisco, CA",
+      "venue": null,
+      "type": "HACKATHON",
+      "CVEvent": true,
+      "status": "featured",
+      "imageUrl": "https://cdn.cerebralvalley.ai/2026-06-25T18:03:24_633Z-upload",
+      "featuredStartTime": "2026-07-01 04:00:00",
+      "featuredEndTime": "2026-07-19 04:00:00",
+      "platformEventData": {
+        "id": "da44d19f-2ead-4e66-b500-21ff85726c92",
+        "title": "The Future of Agentic AI in Healthcare - Abridge x Anthropic x Lightspeed",
+        "slug": "abridge-hackathon",
+        "startDateTime": "2026-07-18 16:00:00",
+        "endDateTime": "2026-07-19 05:00:00",
+        "description": "{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":3},\"content\":[{\"type\":\"text\",\"marks\":[{\"type\":\"bold\"}],\"text\":\"Healthcare has been one of the hardest spaces to build in, period.\"}]},{\"type\":\"paragraph\"},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"The data is messy, the stakes are high, and the margin for error is \"},{\"type\":\"text\",\"marks\":[{\"type\":\"italic\"}],\"text\":\"near zero\"},{\"type\":\"text\",\"text\":\". But the same complexity that once kept\u00a0builders away\u00a0is now what makes it one of the most exciting and consequential frontiers\u00a0in AI.\u00a0\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"marks\":[{\"type\":\"link\",\"attrs\":{\"href\":\"https://www.abridge.com/\",\"target\":\"_blank\",\"rel\":\"noopener noreferrer nofollow\",\"class\":\"text-muted-foreground underline underline-offset-[3px] hover:text-primary transition-colors cursor-pointer\"}},{\"type\":\"bold\"}],\"text\":\"Abridge\"},{\"type\":\"text\",\"marks\":[{\"type\":\"bold\"}],\"text\":\" \"},{\"type\":\"text\",\"text\":\"is building proprietary AI systems for real healthcare environments, training models on clinical data, designing rigorous evaluation frameworks, and deploying agents across 300+ health systems.\u00a0\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"marks\":[{\"type\":\"bold\"}],\"text\":\"Join us at this hackathon to get hands-on with the technology, constraints, and open problems shaping the next generation of AI in healthcare.\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":3},\"content\":[{\"type\":\"text\",\"marks\":[{\"type\":\"bold\"}],\"text\":\"At this event, you will:\"}]},{\"type\":\"bulletList\",\"attrs\":{\"tight\":false},\"content\":[{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Get access to Abridge resources including clinician feedback\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Build with cross-domain experts spanning ML scientists, healthcare workers, and clinical engineers\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Work on one of the hardest and consequential problems in software, directly impacting millions of lives\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Connect with leaders and engineers at \"},{\"type\":\"text\",\"marks\":[{\"type\":\"link\",\"attrs\":{\"href\":\"https://www.abridge.com/\",\"target\":\"_blank\",\"rel\":\"noopener noreferrer nofollow\",\"class\":\"text-muted-foreground underline underline-offset-[3px] hover:text-primary transition-colors cursor-pointer\"}},{\"type\":\"underline\"}],\"text\":\"Abridge\"},{\"type\":\"text\",\"text\":\", \"},{\"type\":\"text\",\"marks\":[{\"type\":\"link\",\"attrs\":{\"href\":\"https://anthropic.com\",\"target\":\"_blank\",\"rel\":\"noopener noreferrer nofollow\",\"class\":\"text-muted-foreground underline underline-offset-[3px] hover:text-primary transition-colors cursor-pointer\"}},{\"type\":\"underline\"}],\"text\":\"Anthropic\"},{\"type\":\"text\",\"text\":\", and \"},{\"type\":\"text\",\"marks\":[{\"type\":\"link\",\"attrs\":{\"href\":\"https://lsvp.com/\",\"target\":\"_blank\",\"rel\":\"noopener noreferrer nofollow\",\"class\":\"text-muted-foreground underline underline-offset-[3px] hover:text-primary transition-colors cursor-pointer\"}},{\"type\":\"underline\"}],\"text\":\"Lightspeed\"}]}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":3},\"content\":[{\"type\":\"text\",\"marks\":[{\"type\":\"bold\"}],\"text\":\"Hackathon Prompt\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":4},\"content\":[{\"type\":\"text\",\"text\":\"Build Agents for Healthcare Clinics\"}]},{\"type\":\"bulletList\",\"attrs\":{\"tight\":false},\"content\":[{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"marks\":[{\"type\":\"italic\"}],\"text\":\"Healthcare is a $4 trillion industry still running on fax machines and burnt-out clinicians. Pick one clinical or operational workflow and build an agentic system that can make it faster, smarter, or safer. For example, build an agent that can help doctors match to clinical trials or build an agent that can determine based on payor policies whether someone qualifies for prior authorization, all based on patient context.\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"marks\":[{\"type\":\"italic\"}],\"text\":\"Your project should be focused on real-world clinical impact, focusing on saving time or lives in the healthcare industry, leveraging AI technology as appropriate.\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"marks\":[{\"type\":\"italic\"}],\"text\":\"Come ready to ship something a clinician or patient-facing team could use on Monday.\u00a0\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"marks\":[{\"type\":\"italic\"}],\"text\":\"Abridge engineers and clinicians will be on the floor all day to pressure-test ideas, sharpen use cases, and help you build toward something real.\"}]},{\"type\":\"paragraph\"}]}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"marks\":[{\"type\":\"italic\"}],\"text\":\"Note: This event is fully in-person in San Francisco. Space is limited. Maximum team size is two. All attendees must apply and be approved to attend.\"}]}]}",
+        "descriptionSummary": "This hackathon will bring together ML scientists, healthcare workers, and clinical engineers to build AI agents tackling real healthcare workflows\u2014from clinical trial matching to prior authorization\u2014with direct mentorship from Abridge, Anthropic, and Lightspeed experts who've deployed these systems across 300+ health systems. Teams will have access to clinical data, rigorous evaluation frameworks, and clinician feedback to ship solutions that could genuinely impact millions of lives.",
+        "timeZone": "America/Los_Angeles",
+        "city": "San Francisco, CA",
+        "approvalRequired": true,
+        "isPlatformHackathon": true,
+        "showLocationBeforeApproval": false,
+        "hosts": [
+          {
+            "eventId": "da44d19f-2ead-4e66-b500-21ff85726c92",
+            "userId": "user_3EuT6B9rrUSPWd45IVv1IwFzM1b",
+            "role": "co-host",
+            "hidden": false,
+            "orderIndex": 2,
+            "createdAt": "2026-06-09 17:50:15.060037",
+            "updatedAt": "2026-07-14 20:39:47.988011",
+            "userProfile": {
+              "userId": "user_3EuT6B9rrUSPWd45IVv1IwFzM1b",
+              "firstName": "Abridge",
+              "lastName": "",
+              "avatarUrl": "https://cdn.cerebralvalley.ai/2026-06-09T17:49:52_805Z-profile-image",
+              "handle": "abridge"
+            }
+          }
+        ],
+        "media": [
+          {
+            "id": "c93576f3-5489-40df-9864-1aa055d5740e",
+            "eventId": "da44d19f-2ead-4e66-b500-21ff85726c92",
+            "mediaLocationType": "main",
+            "mediaType": "image",
+            "url": "https://cdn.cerebralvalley.ai/2026-06-25T18:03:24_633Z-upload",
+            "thumbnailUrl": null,
+            "orderIndex": 0,
+            "createdAt": "2026-06-25 18:03:31.326993",
+            "updatedAt": "2026-07-14 20:39:48.06932"
+          }
+        ]
+      }
+    }
+  ],
+  "totalCount": 2,
+  "limit": 20,
+  "offset": 0
+}
