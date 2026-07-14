@@ -29,26 +29,34 @@ with extended thinking explicitly disabled (see `LEARNINGS.md` for why).
 
 ```
 buildathon_radar/
-    fetcher.py   Devpost + Devfolio fetch, normalise, cache.json dedup
-    agent.py     claude-sonnet-5 call, scoring rubric, strict JSON output
-    guard.py     programmatic anti-hallucination URL check
-    digest.py    markdown assembly from validated picks (code-owned, not Claude)
-    deliver.py   markdown to HTML, local archive, Gmail SMTP send
+    fetcher.py         Devpost + Devfolio fetch, normalise, cache.json dedup
+    agent.py           claude-sonnet-5 call, scoring rubric, strict JSON output
+    guard.py           programmatic anti-hallucination URL check
+    digest.py          markdown/HTML assembly from validated picks (code-owned, not Claude)
+    deliver.py         markdown to HTML, local archive, Gmail SMTP send
+    tracker_store.py   SQLite tracker store (v2): schema, upsert, state transitions, signed tokens
+    tracker_service.py v2 FastAPI app: GET /, /track, /applied
 main.py          orchestrator, --dry-run flag, top-level fatal handler
 tests/           pytest, Claude client always mocked, fixtures under tests/fixtures/
-scheduler/systemd/   service + timer units and install README
+scheduler/systemd/   digest service + timer, tracker service unit, install README
 ```
 
 ## How it works, in one paragraph
 
 Both sources are free public JSON APIs, no scraping, no keys beyond what is
-already in `.env`. Fetched items are deduplicated against `cache.json` (45 day
-TTL) and normalised into an 11-key dict. Claude scores and tiers the survivors
-and returns JSON picks (url, tier, score, why), not prose. `guard.py` checks
-every returned URL against the fetched set and drops anything that does not
-match. `digest.py` then renders the email from the matched source items, not
-from Claude's text, so no fact in the email can be a hallucination. `deliver.py`
-sends it over Gmail SMTP and archives a copy locally.
+already in `.env`. Fetched items are deduplicated against `cache.json` (per-event
+records, date-aware resurface logic) and normalised into a dict that includes
+`event_id`. Claude scores and tiers the survivors and returns JSON picks (url,
+tier, score, why), not prose. `guard.py` checks every returned URL against the
+fetched set and drops anything that does not match. `digest.py` then renders
+the email from the matched source items, not from Claude's text, so no fact in
+the email can be a hallucination. `deliver.py` sends it over Gmail SMTP and
+archives a copy locally. On a non-dry run, `main.py` also upserts every
+emailed pick into `tracker.db` (v2, ROADMAP.md 2.2/2.3) as `seen`; a separate
+always-on FastAPI service (`tracker_service.py`, exposed at
+`https://radar.job-joseph.com`) handles the email's Track/Applied button
+clicks, and the digest renders a tracked-reminder strip and a participation
+log from that store.
 
 ## Commands
 
@@ -57,7 +65,10 @@ venv/bin/pytest                     # full mocked test suite
 venv/bin/python main.py --dry-run   # live fetch + live Claude call, no send, no cache write
 venv/bin/python main.py             # the real weekly run
 systemctl --user list-timers        # confirm the Sunday 17:00 IST schedule
-journalctl --user -u buildathon-radar.service   # read run logs
+journalctl --user -u buildathon-radar.service   # read digest run logs
+systemctl --user status buildathon-tracker.service    # tracker service status
+journalctl --user -u buildathon-tracker.service       # tracker service logs
+curl -s https://radar.job-joseph.com/                 # tracker health check
 ```
 
 ## Known limitations
@@ -74,3 +85,12 @@ journalctl --user -u buildathon-radar.service   # read run logs
 - `ROADMAP.md` is forward-looking: shipped status and what comes next.
   `docs/BUILD-HISTORY.md` is the archived original build plan and endpoint
   recon. `SPEC.md` and this file are the living architecture references.
+  `docs/V2-TRACKER-PLAN.md` is the full architecture and build plan for the
+  v2 tracker (Units A and B: Track/Applied buttons, the participation log),
+  now shipped; see `SPEC.md`'s v2 tracker section for the current summary.
+- The tracker service (`tracker_service.py`) fails fast at startup if
+  `TRACKER_SECRET` is unset in `.env`; it must never run without the ability
+  to verify signed links. Lifecycle states beyond `seen`/`tracked`/`applied`
+  (an `over` state with a recorded outcome), calendar integration, and
+  cross-source entity resolution are deliberately deferred (ROADMAP.md 2.4,
+  2.5, 2.6) and not built.

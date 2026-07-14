@@ -46,6 +46,40 @@ see `SPEC.md`.
 - [x] Live proof-of-life email sent and confirmed on a real phone (Gmail
       Android rendering verified after the mobile-wrapping fix).
 
+## Status: what shipped in v2 Units A and B (tracker, Track/Applied, participation log)
+
+- [x] `tracker_store.py`: SQLite `tracker.db` (WAL mode), `events` + `action_log`
+      tables, keyed on the same composite `event_id` as `cache.json`. State
+      machine `seen -> tracked -> applied` (only moves upward, never
+      downgrades); `over` state and `outcome`/`over_at` columns present but
+      unused, reserved for Section 2.4 with no migration needed later.
+      HMAC-signed action tokens (`sign_action`/`verify_action`).
+- [x] `tracker_service.py`: FastAPI app, `GET /`, `/track`, `/applied`, every
+      action signature-verified before touching the store; unknown event_id,
+      invalid token, and repeat/out-of-order clicks all handled gracefully
+      (404, 403, idempotent 200 respectively), never an error or a downgrade.
+- [x] `fetcher.py`: every returned item now carries `event_id`, matching the
+      cache key, so a Claude pick's guard-matched item ties back to the same
+      tracker row.
+- [x] `digest.py`: Track (filled) / Applied (outlined) bulletproof buttons on
+      every HTML card, a "Tracked" reminder strip (omitted when empty), and
+      an always-visible participation log with a one-line empty state. The
+      plain-text digest is unchanged.
+- [x] `main.py`: non-dry runs upsert validated picks into the tracker store
+      and read tracked/applied rows for the digest; wrapped in its own
+      try/except so a broken tracker store never blocks the Sunday send.
+- [x] `buildathon-tracker.service`: `systemctl --user` unit (`Type=simple`,
+      no sudo), running continuously alongside the digest's oneshot timer.
+- [x] Exposed at `https://radar.job-joseph.com` via the existing `pi-home`
+      Cloudflare Tunnel; verified end-to-end (local and public) with signed
+      test clicks against throwaway rows.
+- [x] Full pytest coverage for the store, the service, event_id passthrough,
+      and the new digest sections; existing suites unaffected.
+
+Sections 2.4 (lifecycle/outcomes), 2.5 (calendar), and 2.6 (entity
+resolution) remain deferred, not built; see Section 2 below and
+`docs/V2-TRACKER-PLAN.md` for the full architecture this was built from.
+
 ## v1 non-goals (still out of scope)
 
 No Luma, no Cerebral Valley, no other social sources, no scraping, no Apify,
@@ -60,7 +94,9 @@ no Google Sheets, no WhatsApp, no web UI, no database beyond `cache.json`.
 3. Unstop as a third API source, if college-tier coverage becomes wanted.
 4. Deadline-reminder mode (a second mention as a cached event's close date nears).
 5. Per-event calendar (.ics) attachments.
-6. The full tracker vision below (Section 2).
+6. The remainder of the tracker vision below (Section 2): lifecycle states
+   and outcomes (2.4), calendar integration (2.5), and cross-source entity
+   resolution (2.6). Sections 2.2 and 2.3 shipped; see the status above.
 
 ---
 

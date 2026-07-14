@@ -151,6 +151,44 @@ No Luma, no Cerebral Valley, no social sources (Twitter, LinkedIn), no
 scraping, no Apify, no Google Sheets, no WhatsApp. `cache.json` and Gmail SMTP
 are the only state and delivery mechanisms.
 
+## v2 tracker (Units A and B): Track/Applied and the participation log
+
+Two independent processes now share one SQLite file, `tracker.db` (WAL mode,
+gitignored, at the repo root):
+
+- The weekly digest run (`main.py`, unchanged oneshot timer) upserts every
+  emailed pick into the store as `seen`, and reads the store's tracked/applied
+  rows to render two new digest sections.
+- `buildathon_radar/tracker_service.py`, a FastAPI app on `127.0.0.1:8015`
+  (systemd user service `buildathon-tracker.service`, `Type=simple`), exposed
+  publicly at `https://radar.job-joseph.com` via the existing `pi-home`
+  Cloudflare Tunnel. It serves `GET /`, `GET /track?event_id=...&t=...`, and
+  `GET /applied?event_id=...&t=...`, the endpoints the email's Track/Applied
+  buttons link to.
+
+`events` table (`buildathon_radar/tracker_store.py`): keyed on `event_id`, the
+same composite id `fetcher.derive_event_id` produces for `cache.json`, with
+event metadata (`title`, `url`, `host`, `source`, `event_start`, `event_end`)
+denormalized onto the row so the participation log survives `cache.json`
+entries aging out. `state` (`seen` -> `tracked` -> `applied` -> `over`) only
+ever moves upward; `outcome` and `over_at` are placeholder columns for the
+deferred lifecycle work (ROADMAP.md 2.4), already legal in the schema's CHECK
+constraints so no migration will be needed to use them. A companion
+`action_log` table records every click, including rejected ones, for
+debugging.
+
+Every Track/Applied link is HMAC-signed (`tracker_store.sign_action`,
+`TRACKER_SECRET` in `.env`) over `action:event_id`, so the endpoints reject a
+forged or replayed link rather than trusting the event_id alone; the id is a
+readable slug reproducible from public listings by anyone reading this public
+repo. Only the digest run inserts rows; the service only updates existing
+ones, so a click against an event_id never in a digest gets a graceful 404.
+
+`digest.py`'s HTML template gains a bulletproof-button Track/Applied row per
+card, a "Tracked" reminder strip (omitted when empty), and an always-visible
+participation log (with a one-line empty state). The plain-text digest is
+unchanged.
+
 ## v2 backlog
 
 1. Cerebral Valley as a source (the Google DeepMind Bangalore Hackathon was
@@ -160,3 +198,6 @@ are the only state and delivery mechanisms.
 3. Unstop as a third API source, if college-tier coverage becomes wanted.
 4. Deadline-reminder mode (a second mention as a cached event's close date nears).
 5. Per-event calendar (.ics) attachments.
+6. Lifecycle states and outcomes (ROADMAP.md 2.4), calendar integration
+   (2.5), and cross-source entity resolution (2.6), all deferred; see
+   `docs/V2-TRACKER-PLAN.md` for the tracker's full architecture.
