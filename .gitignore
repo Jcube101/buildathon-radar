@@ -221,3 +221,6 @@ __marimo__/
 cache.json
 archive/
 scheduler_log.txt
+tracker.db
+tracker.db-wal
+tracker.db-shm

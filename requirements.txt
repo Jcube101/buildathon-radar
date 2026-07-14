@@ -3,3 +3,6 @@ requests
 python-dotenv
 markdown
 pytest
+fastapi
+uvicorn
+httpx
