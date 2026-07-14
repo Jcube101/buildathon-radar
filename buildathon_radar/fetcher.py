@@ -505,6 +505,7 @@ def fetch_events(dry_run=False):
                 continue
 
             event_id = url_index.get(url) or derive_event_id(item) or _legacy_event_id(url)
+            item["event_id"] = event_id
             existing = updates.get(event_id) or cache.get(event_id)
 
             if existing is None:

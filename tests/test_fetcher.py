@@ -399,6 +399,92 @@ class TestFetchEventsBasics:
         assert record["resurfaced"] is False
 
 
+class TestEventIdPassthrough:
+    """The v2 tracker keys off the same event_id fetch_events derives
+    internally for the cache, so every returned item must carry it."""
+
+    def _make_item(self, url, **overrides):
+        item = {
+            "source": "Devpost",
+            "title": "Some Hackathon",
+            "url": url,
+            "summary": "s",
+            "published": "2026-01-01",
+            "location": "Online",
+            "mode": "online",
+            "host": "Acme",
+            "dates": "d",
+            "prize": "",
+            "themes": [],
+            "event_start": "2026-08-01",
+            "event_end": None,
+        }
+        item.update(overrides)
+        return item
+
+    def test_brand_new_item_carries_event_id_matching_derive_event_id(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        url = "https://acme.devpost.com/"
+        item = self._make_item(url)
+        monkeypatch.setattr(
+            fetcher,
+            "SOURCES",
+            [
+                {"name": "Devpost", "fetch": lambda: ([item], None)},
+                {"name": "Devfolio", "fetch": lambda: ([], None)},
+            ],
+        )
+        items, health = fetcher.fetch_events(dry_run=True)
+        assert len(items) == 1
+        assert items[0]["event_id"]
+        assert items[0]["event_id"] == fetcher.derive_event_id(item)
+
+    def test_resurfaced_item_carries_the_same_event_id_as_the_cache_key(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        url = "https://acme.devpost.com/"
+        near_start = (datetime.now() + timedelta(days=5)).strftime("%Y-%m-%d")
+        event_id = "acme foo-hackathon"
+        record = {
+            "event_id": event_id,
+            "urls": [url],
+            "first_seen": (datetime.now() - timedelta(days=20)).strftime("%Y-%m-%d"),
+            "last_shown": (datetime.now() - timedelta(days=20)).strftime("%Y-%m-%d"),
+            "status": "seen",
+            "resurfaced": False,
+            "event_start": near_start,
+            "event_end": None,
+        }
+        (tmp_path / "cache.json").write_text(json.dumps({event_id: record}))
+        item = self._make_item(url, event_start=near_start)
+        monkeypatch.setattr(
+            fetcher,
+            "SOURCES",
+            [
+                {"name": "Devpost", "fetch": lambda: ([item], None)},
+                {"name": "Devfolio", "fetch": lambda: ([], None)},
+            ],
+        )
+        items, health = fetcher.fetch_events(dry_run=False)
+        assert len(items) == 1
+        assert items[0]["event_id"] == event_id
+
+    def test_legacy_fallback_id_used_when_no_host_or_title(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        url = "https://example.com/no-metadata-event"
+        item = self._make_item(url, title="", host="")
+        monkeypatch.setattr(
+            fetcher,
+            "SOURCES",
+            [
+                {"name": "Devpost", "fetch": lambda: ([item], None)},
+                {"name": "Devfolio", "fetch": lambda: ([], None)},
+            ],
+        )
+        items, health = fetcher.fetch_events(dry_run=True)
+        assert len(items) == 1
+        assert items[0]["event_id"] == fetcher._legacy_event_id(url)
+
+
 class TestResurfaceLogic:
     """Date-aware resurface behaviour, replacing the old fixed-45-day-from-
     first-seen suppression: a future event stays hidden until it is within
