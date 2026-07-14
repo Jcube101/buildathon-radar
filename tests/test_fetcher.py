@@ -485,6 +485,223 @@ class TestEventIdPassthrough:
         assert items[0]["event_id"] == fetcher._legacy_event_id(url)
 
 
+class TestUrlCanonicalize:
+    def test_lu_ma_host_folds_to_luma_com(self):
+        assert fetcher._canonicalize_url("https://lu.ma/abc123") == "https://luma.com/abc123"
+
+    def test_luma_com_unchanged(self):
+        assert fetcher._canonicalize_url("https://luma.com/abc123") == "https://luma.com/abc123"
+
+    def test_http_upgraded_to_https(self):
+        assert fetcher._canonicalize_url("http://example.devpost.com/") == "https://example.devpost.com/"
+
+    def test_whitespace_stripped(self):
+        assert fetcher._canonicalize_url("  https://a.com/x  ") == "https://a.com/x"
+
+    def test_empty_and_none_passthrough(self):
+        assert fetcher._canonicalize_url("") == ""
+        assert fetcher._canonicalize_url(None) is None
+
+    def test_non_luma_domain_unaffected(self):
+        assert fetcher._canonicalize_url("https://example.devpost.com/") == "https://example.devpost.com/"
+
+
+class TestNormaliseLuma:
+    def _entry(self, name):
+        data = load_fixture("luma_place_sample.json")
+        for e in data["entries"]:
+            if e["event"]["name"] == name:
+                return e
+        raise AssertionError(f"fixture entry not found: {name}")
+
+    def test_real_fixture_item_india_builds_with_claude(self):
+        entry = self._entry("India Builds with Claude - Razorpay | Anthropic | Peak XV")
+        n = fetcher.normalise_luma(entry)
+        assert n["source"] == "Luma"
+        assert n["url"] == "https://luma.com/8v8l5x5g"
+        assert n["mode"] == "in-person"
+        assert n["location"] == "Bengaluru, India"
+        _assert_no_unexpected_nones(n)
+
+    def test_host_falls_back_to_first_named_host_when_calendar_is_personal(self):
+        entry = self._entry("India Builds with Claude - Razorpay | Anthropic | Peak XV")
+        n = fetcher.normalise_luma(entry)
+        assert n["host"] == "Vineet Agarwal"
+
+    def test_host_uses_calendar_name_when_not_personal(self):
+        entry = self._entry("Docusign Developers Meetup")
+        n = fetcher.normalise_luma(entry)
+        assert n["host"] == "Docusign Developers"
+
+    def test_host_unknown_when_no_calendar_or_hosts(self):
+        entry = {"event": {"name": "T", "url": "x"}, "calendar": {}, "hosts": []}
+        n = fetcher.normalise_luma(entry)
+        assert n["host"] == "Unknown"
+
+    def test_url_construction_from_slug(self):
+        entry = {"event": {"name": "T", "url": "myslug"}, "calendar": {}, "hosts": []}
+        n = fetcher.normalise_luma(entry)
+        assert n["url"] == "https://luma.com/myslug"
+
+    def test_missing_fields_fallback(self):
+        n = fetcher.normalise_luma({})
+        assert n["title"] == "Unknown"
+        assert n["url"] == ""
+        assert n["host"] == "Unknown"
+        assert n["published"] == "Unknown"
+        assert n["location"] == "Unknown"
+        assert n["mode"] == "in-person"
+        assert n["prize"] == ""
+        assert n["themes"] == []
+        assert n["event_start"] is None
+        assert n["event_end"] is None
+
+    def test_online_mode_detection(self):
+        entry = {"event": {"name": "T", "url": "x", "location_type": "online"}, "calendar": {}, "hosts": []}
+        n = fetcher.normalise_luma(entry)
+        assert n["mode"] == "online"
+        assert n["location"] == "Online"
+
+    def test_utc_to_ist_date_conversion(self):
+        entry = {
+            "event": {
+                "name": "T",
+                "url": "x",
+                "start_at": "2026-07-16T12:30:00.000Z",
+                "end_at": "2026-07-16T15:30:00.000Z",
+            },
+            "calendar": {},
+            "hosts": [],
+        }
+        n = fetcher.normalise_luma(entry)
+        # 12:30 UTC -> 18:00 IST, same calendar day
+        assert n["event_start"] == "2026-07-16"
+        assert n["event_end"] == "2026-07-16"
+
+    def test_late_utc_time_crosses_ist_day_boundary(self):
+        entry = {
+            "event": {
+                "name": "T",
+                "url": "x",
+                "start_at": "2026-07-16T19:00:00.000Z",  # 00:30 IST next day
+            },
+            "calendar": {},
+            "hosts": [],
+        }
+        n = fetcher.normalise_luma(entry)
+        assert n["event_start"] == "2026-07-17"
+
+
+class TestFetchLuma:
+    def test_dedupes_by_api_id_across_pages(self, monkeypatch):
+        entry = {
+            "event": {"api_id": "evt-1", "name": "T", "url": "x", "visibility": "public"},
+            "calendar": {},
+            "hosts": [],
+        }
+        page1 = {"entries": [entry], "has_more": True, "next_cursor": "c1"}
+        page2 = {"entries": [entry], "has_more": False, "next_cursor": None}
+        responses = iter([page1, page2])
+
+        class FakeResp:
+            def __init__(self, data):
+                self._data = data
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return self._data
+
+        def fake_get(url, params=None, headers=None, timeout=None):
+            return FakeResp(next(responses))
+
+        monkeypatch.setattr(fetcher.requests, "get", fake_get)
+        monkeypatch.setattr(fetcher.time, "sleep", lambda s: None)
+        items, error = fetcher.fetch_luma()
+        assert error is None
+        assert len(items) == 1
+
+    def test_skips_non_public_visibility(self, monkeypatch):
+        public_entry = {
+            "event": {"api_id": "evt-1", "name": "Public", "url": "a", "visibility": "public"},
+            "calendar": {}, "hosts": [],
+        }
+        private_entry = {
+            "event": {"api_id": "evt-2", "name": "Private", "url": "b", "visibility": "private"},
+            "calendar": {}, "hosts": [],
+        }
+
+        class FakeResp:
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"entries": [public_entry, private_entry], "has_more": False, "next_cursor": None}
+
+        monkeypatch.setattr(fetcher.requests, "get", lambda *a, **k: FakeResp())
+        items, error = fetcher.fetch_luma()
+        assert error is None
+        assert len(items) == 1
+        assert items[0]["title"] == "Public"
+
+    def test_per_item_error_skipped(self, monkeypatch):
+        good = {"event": {"api_id": "evt-1", "name": "Good", "url": "a", "visibility": "public"}, "calendar": {}, "hosts": []}
+        bad = {"event": {"api_id": "evt-2", "visibility": "public"}, "calendar": None, "hosts": None}
+
+        class FakeResp:
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"entries": [good, bad], "has_more": False, "next_cursor": None}
+
+        monkeypatch.setattr(fetcher.requests, "get", lambda *a, **k: FakeResp())
+
+        real_normalise = fetcher.normalise_luma
+
+        def spy_normalise(entry):
+            if entry is bad:
+                raise Exception("boom")
+            return real_normalise(entry)
+
+        monkeypatch.setattr(fetcher, "normalise_luma", spy_normalise)
+        items, error = fetcher.fetch_luma()
+        assert error is None
+        assert len(items) == 1
+        assert items[0]["title"] == "Good"
+
+    def test_request_failure_returns_error_shape(self, monkeypatch):
+        monkeypatch.setattr(fetcher.requests, "get", _raise)
+        items, error = fetcher.fetch_luma()
+        assert items == []
+        assert error == "boom"
+
+    def test_stops_after_five_pages_even_if_has_more(self, monkeypatch):
+        call_count = {"n": 0}
+
+        class FakeResp:
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                call_count["n"] += 1
+                return {
+                    "entries": [{
+                        "event": {"api_id": f"evt-{call_count['n']}", "name": "T", "url": "x", "visibility": "public"},
+                        "calendar": {}, "hosts": [],
+                    }],
+                    "has_more": True,
+                    "next_cursor": f"cursor-{call_count['n']}",
+                }
+
+        monkeypatch.setattr(fetcher.requests, "get", lambda *a, **k: FakeResp())
+        monkeypatch.setattr(fetcher.time, "sleep", lambda s: None)
+        items, error = fetcher.fetch_luma()
+        assert error is None
+        assert call_count["n"] == 5
+
+
 class TestResurfaceLogic:
     """Date-aware resurface behaviour, replacing the old fixed-45-day-from-
     first-seen suppression: a future event stays hidden until it is within

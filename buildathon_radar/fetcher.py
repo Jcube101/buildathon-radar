@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -8,6 +9,15 @@ import requests
 CACHE_FILE = "cache.json"
 CACHE_TTL_DAYS = 45  # fallback suppression window for events with no parseable date
 RESURFACE_WINDOW_DAYS = 14  # days before event_start a suppressed event may resurface, once
+TITLE_MERGE_WINDOW_DAYS = 90  # exact-normalized-title cross-source merge window (see derive_event_id docstring)
+SOURCE_REQUEST_DELAY_S = 1  # politeness delay between successive paged requests to the same host
+
+# Cerebral Valley's fetcher is fully built and tested (see fetch_cerebralvalley
+# below and tests/test_fetcher.py) but deliberately not wired into the live
+# SOURCES list yet. Decision: activate Luma alone this week, verify its real
+# behaviour in a live digest, then flip this to True about a week later to
+# activate Cerebral Valley. See ROADMAP.md for the full reasoning.
+ENABLE_CV_SOURCE = False
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) buildathon-radar/1.0",
@@ -16,6 +26,12 @@ HEADERS = {
 
 DEVPOST_URL = "https://devpost.com/api/hackathons"
 DEVFOLIO_URL = "https://api.devfolio.co/api/search/hackathons"
+LUMA_API_URL = "https://api.luma.com/discover/get-paginated-events"
+LUMA_PLACE_BENGALURU = "discplace-G0tGUVYwl7T17Sb"
+CV_API_URL = "https://api.cerebralvalley.ai/v1/public/event/pull"
+CV_WINDOW_DAYS = 60  # how far ahead the Cerebral Valley upcoming window looks
+CV_PAGE_LIMIT = 100  # verified server-side cap on the pull endpoint
+CV_MAX_PAGES = 6  # runaway guard while paging backward from the tail
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -142,6 +158,22 @@ def _normalize_host(host):
 
 def _slugify(text):
     return re.sub(r"\s+", "-", text.strip())
+
+
+def _canonicalize_url(url):
+    """Normalizes a URL for cross-source dedup: strips whitespace, forces
+    https, and folds Luma's old lu.ma host into its current luma.com host so
+    a Cerebral Valley listing that links out to lu.ma/<slug> collapses with
+    the same event fetched directly from Luma via the existing url_index
+    dedup in fetch_events. A no-op for Devpost/Devfolio URLs, which never
+    matched the lu.ma pattern to begin with."""
+    if not url:
+        return url
+    u = url.strip()
+    if u.startswith("http://"):
+        u = "https://" + u[len("http://"):]
+    u = re.sub(r"^https://lu\.ma/", "https://luma.com/", u)
+    return u
 
 
 def derive_event_id(item):
@@ -280,7 +312,7 @@ def _parse_devpost_date_range(submission_period_dates):
 
 def normalise_devpost(item):
     title = item.get("title") or "Unknown"
-    url = (item.get("url") or "").strip()
+    url = _canonicalize_url((item.get("url") or "").strip())
     themes = [t.get("name", "") for t in (item.get("themes") or []) if t.get("name")]
     displayed_location = item.get("displayed_location") or {}
     location = displayed_location.get("location") or "Unknown"
@@ -326,6 +358,19 @@ def _to_ist(iso_str):
         return None
 
 
+def _format_human_date(date_str):
+    """A "YYYY-MM-DD" date string to "Mon DD, YYYY" for the "dates" display
+    field, or the raw string back if unparseable. Shared by the Luma and
+    Cerebral Valley normalisers, whose "dates" field is built from plain
+    YYYY-MM-DD parts rather than a pre-formatted upstream string."""
+    if not date_str:
+        return None
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").strftime("%b %d, %Y")
+    except ValueError:
+        return date_str
+
+
 def normalise_devfolio(src):
     name = src.get("name") or "Unknown"
     tagline = src.get("tagline") or ""
@@ -335,7 +380,7 @@ def normalise_devfolio(src):
         title = name
 
     slug = src.get("slug") or ""
-    url = f"https://{slug}.devfolio.co/" if slug else ""
+    url = _canonicalize_url(f"https://{slug}.devfolio.co/" if slug else "")
 
     desc = src.get("desc") or tagline or ""
     summary = desc.strip()[:500]
@@ -392,6 +437,75 @@ def normalise_devfolio(src):
         "dates": dates,
         "prize": prize,
         "themes": themes,
+        "event_start": event_start,
+        "event_end": event_end,
+    }
+
+
+def normalise_luma(entry):
+    """entry is one item from the discover feed's "entries" list: the outer
+    envelope with "event", "calendar", and "hosts" keys, not just the inner
+    event dict, since host derivation needs the calendar and hosts too."""
+    ev = entry.get("event") or {}
+    title = ev.get("name") or "Unknown"
+
+    slug = ev.get("url") or ""
+    url = _canonicalize_url(f"https://luma.com/{slug}" if slug else "")
+
+    geo = ev.get("geo_address_info") or {}
+    location_type = ev.get("location_type")
+    if geo.get("city_state"):
+        location = geo["city_state"]
+    elif geo.get("city"):
+        location = geo["city"]
+    elif location_type == "online":
+        location = "Online"
+    else:
+        location = "Unknown"
+    mode = "online" if location_type == "online" else "in-person"
+
+    calendar = entry.get("calendar") or {}
+    cal_name = calendar.get("name")
+    hosts = entry.get("hosts") or []
+    if cal_name and cal_name != "Personal":
+        host = cal_name
+    elif hosts and hosts[0].get("name"):
+        host = hosts[0]["name"]
+    else:
+        host = "Unknown"
+
+    start_ist = _to_ist(ev.get("start_at"))
+    end_ist = _to_ist(ev.get("end_at"))
+    published = start_ist.strftime("%Y-%m-%d") if start_ist else "Unknown"
+    event_start = start_ist.strftime("%Y-%m-%d") if start_ist else None
+    event_end = end_ist.strftime("%Y-%m-%d") if end_ist else None
+    if start_ist and end_ist:
+        dates = f"{start_ist.strftime('%b %d, %Y')} to {end_ist.strftime('%b %d, %Y')}"
+    elif start_ist:
+        dates = start_ist.strftime("%b %d, %Y")
+    else:
+        dates = ""
+
+    host_names = ", ".join(h.get("name", "") for h in hosts if h.get("name"))
+    summary_parts = [title]
+    if host_names:
+        summary_parts.append(host_names)
+    if location and location != "Unknown":
+        summary_parts.append(location)
+    summary = " | ".join(summary_parts)[:500]
+
+    return {
+        "source": "Luma",
+        "title": title,
+        "url": url,
+        "summary": summary,
+        "published": published,
+        "location": location,
+        "mode": mode,
+        "host": host,
+        "dates": dates,
+        "prize": "",
+        "themes": [],
         "event_start": event_start,
         "event_end": event_end,
     }
@@ -463,10 +577,59 @@ def fetch_devfolio():
         return [], str(e)
 
 
+def fetch_luma():
+    """Returns (items, error). error is None on success.
+
+    Bengaluru place feed only. The cat-ai category feed found during recon
+    (docs/V2-SOURCING-PLAN.md) is geo-personalised by requesting IP and was
+    judged not worth the added complexity for this build; see LEARNINGS.md.
+    """
+    items = []
+    seen_ids = set()
+    try:
+        cursor = None
+        pages_fetched = 0
+        while True:
+            params = {
+                "discover_place_api_id": LUMA_PLACE_BENGALURU,
+                "pagination_limit": 50,
+            }
+            if cursor:
+                params["pagination_cursor"] = cursor
+            resp = requests.get(LUMA_API_URL, params=params, headers=HEADERS, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            entries = data.get("entries") or []
+            for entry in entries:
+                api_id = (entry.get("event") or {}).get("api_id")
+                if api_id:
+                    if api_id in seen_ids:
+                        continue
+                    seen_ids.add(api_id)
+                if (entry.get("event") or {}).get("visibility") not in (None, "public"):
+                    continue
+                try:
+                    items.append(normalise_luma(entry))
+                except Exception:
+                    continue
+            pages_fetched += 1
+            cursor = data.get("next_cursor")
+            if not data.get("has_more") or not cursor or pages_fetched >= 5:
+                break
+            time.sleep(SOURCE_REQUEST_DELAY_S)
+        return items, None
+    except Exception as e:
+        print(f"  WARNING: Luma fetch error: {e}")
+        return [], str(e)
+
+
 SOURCES = [
     {"name": "Devpost", "fetch": fetch_devpost},
     {"name": "Devfolio", "fetch": fetch_devfolio},
 ]
+if ENABLE_CV_SOURCE:
+    SOURCES.append({"name": "Cerebral Valley", "fetch": fetch_cerebralvalley})
+SOURCES.append({"name": "Luma", "fetch": fetch_luma})
 
 
 def fetch_events(dry_run=False):
