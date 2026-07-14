@@ -1,4 +1,5 @@
 from buildathon_radar.digest import build_digest, build_html_digest
+from buildathon_radar import tracker_store
 
 
 def make_item(url, title="Source Title", **overrides):
@@ -306,3 +307,110 @@ class TestHtmlDigestMobileWrapping:
         html = build_html_digest([pick], [], health, "")
         footer_section = html[html.rfind("Source health"):]
         assert "word-break:break-word" in footer_section
+
+
+def make_tracker_row(event_id, **overrides):
+    row = {
+        "event_id": event_id,
+        "title": "Tracked Hackathon",
+        "url": "https://tracked.devpost.com/",
+        "event_start": "2026-08-01",
+        "event_end": "2026-08-02",
+    }
+    row.update(overrides)
+    return row
+
+
+class TestActionButtons:
+    def test_card_contains_both_signed_hrefs(self, monkeypatch):
+        monkeypatch.setenv("TRACKER_SECRET", "test-secret")
+        item = make_item("https://a.com/1", event_id="ev-1")
+        pick = make_pick(item)
+        html = build_html_digest([pick], [], {"Devpost": {"count": 1, "error": None}}, "")
+        assert "https://radar.job-joseph.com/track?event_id=ev-1&amp;t=" in html
+        assert "https://radar.job-joseph.com/applied?event_id=ev-1&amp;t=" in html
+        assert "Track" in html
+        assert "Applied" in html
+
+    def test_button_token_is_verifiable(self, monkeypatch):
+        monkeypatch.setenv("TRACKER_SECRET", "test-secret")
+        item = make_item("https://a.com/1", event_id="ev-2")
+        pick = make_pick(item)
+        html = build_html_digest([pick], [], {"Devpost": {"count": 1, "error": None}}, "")
+        import re
+        match = re.search(r"/track\?event_id=ev-2&amp;t=([0-9a-f]+)", html)
+        assert match is not None
+        token = match.group(1)
+        assert tracker_store.verify_action("track", "ev-2", token, secret="test-secret")
+
+    def test_event_id_urlencoded_in_href(self, monkeypatch):
+        monkeypatch.setenv("TRACKER_SECRET", "test-secret")
+        item = make_item("https://a.com/1", event_id="ev with space")
+        pick = make_pick(item)
+        html = build_html_digest([pick], [], {"Devpost": {"count": 1, "error": None}}, "")
+        assert "event_id=ev%20with%20space" in html
+
+    def test_no_button_row_without_event_id(self, monkeypatch):
+        monkeypatch.setenv("TRACKER_SECRET", "test-secret")
+        item = make_item("https://a.com/1")  # no event_id key
+        pick = make_pick(item)
+        html = build_html_digest([pick], [], {"Devpost": {"count": 1, "error": None}}, "")
+        assert "radar.job-joseph.com" not in html
+
+    def test_no_button_row_when_secret_unset(self, monkeypatch):
+        monkeypatch.delenv("TRACKER_SECRET", raising=False)
+        item = make_item("https://a.com/1", event_id="ev-3")
+        pick = make_pick(item)
+        html = build_html_digest([pick], [], {"Devpost": {"count": 1, "error": None}}, "")
+        assert "radar.job-joseph.com" not in html
+
+
+class TestTrackedSection:
+    def test_omitted_when_empty(self):
+        html = build_html_digest([], [], {"Devpost": {"count": 0, "error": None}}, "", tracked_events=[])
+        assert "Tracked" not in html
+
+    def test_renders_title_and_start_date_when_present(self):
+        row = make_tracker_row("t1", title="Reminder Hack", event_start="2026-09-15")
+        html = build_html_digest([], [], {"Devpost": {"count": 0, "error": None}}, "", tracked_events=[row])
+        assert "Reminder Hack" in html
+        assert "Sep 15, 2026" in html
+        assert "https://tracked.devpost.com/" in html
+
+
+class TestParticipationLog:
+    def test_empty_state_copy_when_no_applied_events(self):
+        html = build_html_digest([], [], {"Devpost": {"count": 0, "error": None}}, "", applied_events=[])
+        assert "Nothing here yet" in html
+        assert "Participation log" in html
+
+    def test_renders_title_and_both_dates(self):
+        row = make_tracker_row("a1", title="Applied Hack", event_start="2026-08-01", event_end="2026-08-03")
+        html = build_html_digest([], [], {"Devpost": {"count": 0, "error": None}}, "", applied_events=[row])
+        assert "Applied Hack" in html
+        assert "Aug 01, 2026" in html
+        assert "Aug 03, 2026" in html
+        assert "https://tracked.devpost.com/" in html
+
+    def test_tbd_fallback_for_missing_dates(self):
+        row = make_tracker_row("a2", event_start=None, event_end=None)
+        html = build_html_digest([], [], {"Devpost": {"count": 0, "error": None}}, "", applied_events=[row])
+        assert "TBD" in html
+
+    def test_section_always_present_even_with_picks(self):
+        item = make_item("https://a.com/1")
+        pick = make_pick(item)
+        html = build_html_digest([pick], [], {"Devpost": {"count": 1, "error": None}}, "")
+        assert "Participation log" in html
+
+
+class TestPlainTextUnaffectedByButtons:
+    def test_build_digest_output_unchanged_with_event_id_present(self):
+        item = make_item("https://a.com/1", event_id="ev-1")
+        pick = make_pick(item)
+        item_no_id = make_item("https://a.com/1")
+        pick_no_id = make_pick(item_no_id)
+        digest_with = build_digest([pick], [], {"Devpost": {"count": 1, "error": None}}, "note")
+        digest_without = build_digest([pick_no_id], [], {"Devpost": {"count": 1, "error": None}}, "note")
+        assert digest_with == digest_without
+        assert "radar.job-joseph.com" not in digest_with

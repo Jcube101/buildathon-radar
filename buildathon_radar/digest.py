@@ -1,4 +1,10 @@
 import html as html_lib
+from datetime import datetime
+from urllib.parse import quote
+
+from buildathon_radar import tracker_store
+
+TRACKER_BASE = "https://radar.job-joseph.com"
 
 TIER_ORDER = ["must_see", "worth_a_look", "radar"]
 
@@ -144,6 +150,26 @@ def _esc(value):
     return html_lib.escape(str(value or ""))
 
 
+def _action_url(action, event_id):
+    """Signed Track/Applied link for the email buttons. Returns None if
+    TRACKER_SECRET is unset (e.g. a fresh checkout), so the card renders
+    without buttons rather than with unsigned dead links."""
+    token = tracker_store.sign_action(action, event_id)
+    if token is None:
+        return None
+    return f"{TRACKER_BASE}/{action}?event_id={quote(event_id)}&t={token}"
+
+
+def _format_log_date(value):
+    """A "YYYY-MM-DD" date string to "Mon DD, YYYY", or "TBD" when unknown."""
+    if not value:
+        return "TBD"
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").strftime("%b %d, %Y")
+    except ValueError:
+        return value
+
+
 def _html_tier_header_row(tier):
     color = TIER_COLORS[tier]
     label = TIER_LABELS[tier]
@@ -186,6 +212,22 @@ def _html_card_row(pick, tier):
 </td>
 </tr>"""
 
+    button_row = ""
+    event_id = item.get("event_id")
+    if event_id:
+        track_url = _action_url("track", event_id)
+        applied_url = _action_url("applied", event_id)
+        if track_url and applied_url:
+            button_row = f"""<tr>
+<td style="background-color:{CARD_BG}; padding:12px 0 0 0;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="background-color:{SCORE_BADGE_BG};"><a href="{_esc(track_url)}" style="display:inline-block; padding:9px 16px; font-family:{FONT_STACK}; font-size:13px; font-weight:bold; color:#ffffff; text-decoration:none;">&#128204; Track</a></td>
+<td style="background-color:{CARD_BG}; width:10px; font-size:0; line-height:0;">&nbsp;</td>
+<td style="background-color:{CARD_BG}; border:1px solid {SCORE_BADGE_BG};"><a href="{_esc(applied_url)}" style="display:inline-block; padding:8px 15px; font-family:{FONT_STACK}; font-size:13px; font-weight:bold; color:{SCORE_BADGE_BG}; text-decoration:none;">&#127919; Applied</a></td>
+</tr></table>
+</td>
+</tr>"""
+
     return f"""<tr>
 <td style="background-color:{PAGE_BG}; padding:0 24px 14px 24px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:{CARD_BG}; max-width:100%;">
@@ -203,12 +245,93 @@ def _html_card_row(pick, tier):
 </tr></table>
 </td></tr>
 {why_row}
+{button_row}
 </table>
 </td>
 </tr>
 </table>
 </td>
 </tr>"""
+
+
+def _html_tracked_section(tracked_events):
+    """Rendered only when non-empty: a reminder strip, not a ledger. Every
+    field comes from the tracker store row, never from Claude."""
+    if not tracked_events:
+        return ""
+
+    header = f"""<tr>
+<td style="background-color:{PAGE_BG}; padding:22px 24px 8px 24px; font-family:{FONT_STACK}; font-size:13px; font-weight:bold; letter-spacing:0.5px; color:{SCORE_BADGE_BG}; {WRAP}">&#128204; Tracked</td>
+</tr>"""
+
+    item_rows = []
+    for row in tracked_events:
+        title = _esc(row["title"])
+        url = _esc(row["url"])
+        start = _esc(_format_log_date(row["event_start"]))
+        item_rows.append(f"""<tr>
+<td style="background-color:{CARD_BG}; padding:8px 14px; font-family:{FONT_STACK}; font-size:13px; {WRAP}"><a href="{url}" style="color:{TEAL_DARK}; text-decoration:none; font-weight:bold;">{title}</a></td>
+<td style="background-color:{CARD_BG}; padding:8px 14px; font-family:{FONT_STACK}; font-size:12px; color:#6b7b7b; white-space:nowrap;">{start}</td>
+</tr>""")
+
+    table = f"""<tr>
+<td style="background-color:{PAGE_BG}; padding:0 24px 14px 24px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:{CARD_BG}; max-width:100%;">
+{"".join(item_rows)}
+</table>
+</td>
+</tr>"""
+    return header + "\n" + table
+
+
+def _html_participation_log(applied_events):
+    """Always rendered (2.3): every event marked Applied and not yet past its
+    end date. A rendered view over the tracker store, code-owned like the
+    rest of the digest. Degrades to a one-line empty state when nothing has
+    been marked Applied yet, so the feature stays discoverable."""
+    header = f"""<tr>
+<td style="background-color:{PAGE_BG}; padding:22px 24px 8px 24px; font-family:{FONT_STACK}; font-size:13px; font-weight:bold; letter-spacing:0.5px; color:{TIER_COLORS['worth_a_look']}; {WRAP}">&#128193; Participation log</td>
+</tr>"""
+
+    if not applied_events:
+        body = f"""<tr>
+<td style="background-color:{PAGE_BG}; padding:0 24px 14px 24px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:{CARD_BG}; max-width:100%;">
+<tr>
+<td style="background-color:{CARD_BG}; padding:14px 18px; font-family:{FONT_STACK}; font-size:13px; font-style:italic; color:#6b7b7b; {WRAP}">Nothing here yet. Tap &quot;Applied&quot; on an event card after you register, and it will appear here with its dates until the event ends.</td>
+</tr>
+</table>
+</td>
+</tr>"""
+        return header + "\n" + body
+
+    head_row = f"""<tr>
+<td width="50%" style="background-color:{WHY_TINT_BG}; padding:8px 14px; font-family:{FONT_STACK}; font-size:12px; font-weight:bold; color:#2e4243; {WRAP}">Event</td>
+<td width="25%" style="background-color:{WHY_TINT_BG}; padding:8px 14px; font-family:{FONT_STACK}; font-size:12px; font-weight:bold; color:#2e4243;">Starts</td>
+<td width="25%" style="background-color:{WHY_TINT_BG}; padding:8px 14px; font-family:{FONT_STACK}; font-size:12px; font-weight:bold; color:#2e4243;">Ends</td>
+</tr>"""
+
+    data_rows = []
+    for row in applied_events:
+        title = _esc(row["title"])
+        url = _esc(row["url"])
+        start = _esc(_format_log_date(row["event_start"]))
+        end = _esc(_format_log_date(row["event_end"]))
+        data_rows.append(f"""<tr>
+<td style="background-color:{CARD_BG}; padding:8px 14px; font-family:{FONT_STACK}; font-size:13px; {WRAP}"><a href="{url}" style="color:{TEAL_DARK}; text-decoration:none; font-weight:bold;">{title}</a></td>
+<td style="background-color:{CARD_BG}; padding:8px 14px; font-family:{FONT_STACK}; font-size:12px; color:#6b7b7b; white-space:nowrap;">{start}</td>
+<td style="background-color:{CARD_BG}; padding:8px 14px; font-family:{FONT_STACK}; font-size:12px; color:#6b7b7b; white-space:nowrap;">{end}</td>
+</tr>""")
+
+    table = f"""<tr>
+<td style="background-color:{PAGE_BG}; padding:0 24px 14px 24px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:{CARD_BG}; max-width:100%;">
+{head_row}
+{"".join(data_rows)}
+</table>
+</td>
+</tr>"""
+    return header + "\n" + table
 
 
 def _html_footer_row(source_health, dropped):
@@ -244,11 +367,18 @@ def _html_footer_row(source_health, dropped):
 </tr>"""
 
 
-def build_html_digest(picks, dropped, source_health, week_note, date_range=None):
+def build_html_digest(picks, dropped, source_health, week_note, date_range=None,
+                       tracked_events=None, applied_events=None):
     """Gmail Android compatible HTML digest: table-based layout, all CSS
     inline, system font stack, no external assets, no JavaScript. Presentation
     only, same content rule as build_digest: every factual field comes from
-    the matched source item, Claude only supplies score, tier, and why."""
+    the matched source item, Claude only supplies score, tier, and why.
+
+    tracked_events and applied_events are tracker-store rows (v2 Units A/B):
+    a standing-reminder strip and the participation log, both rendered from
+    the store, never from Claude. Default to empty (a dry run passes none)."""
+    tracked_events = tracked_events or []
+    applied_events = applied_events or []
     rows = []
 
     subtitle_html = (
@@ -294,6 +424,8 @@ def build_html_digest(picks, dropped, source_health, week_note, date_range=None)
             for pick in tier_picks:
                 rows.append(_html_card_row(pick, tier))
 
+    rows.append(_html_tracked_section(tracked_events))
+    rows.append(_html_participation_log(applied_events))
     rows.append(_html_footer_row(source_health, dropped))
 
     body = "\n".join(rows)
