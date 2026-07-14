@@ -105,6 +105,17 @@ def upsert_seen(conn, items):
     conn.commit()
 
 
+def log_action(conn, event_id, action, result):
+    """Appends one row to the action_log audit trail. Exposed publicly so the
+    tracker service can log a bad_token rejection (which never reaches
+    apply_action, since the signature is checked first)."""
+    conn.execute(
+        "INSERT INTO action_log (event_id, action, result, occurred_at) VALUES (?, ?, ?, ?)",
+        (event_id, action, result, _now_ist()),
+    )
+    conn.commit()
+
+
 def apply_action(conn, action, event_id):
     """Applies a track/applied action to an existing row.
 
@@ -122,19 +133,11 @@ def apply_action(conn, action, event_id):
     ).fetchone()
 
     if row is None:
-        conn.execute(
-            "INSERT INTO action_log (event_id, action, result, occurred_at) VALUES (?, ?, ?, ?)",
-            (event_id, action, "unknown_event", now),
-        )
-        conn.commit()
+        log_action(conn, event_id, action, "unknown_event")
         return "unknown_event", None
 
     if STATE_RANK[row["state"]] >= STATE_RANK[target_state]:
-        conn.execute(
-            "INSERT INTO action_log (event_id, action, result, occurred_at) VALUES (?, ?, ?, ?)",
-            (event_id, action, "noop", now),
-        )
-        conn.commit()
+        log_action(conn, event_id, action, "noop")
         return "noop", row
 
     ts_column = "tracked_at" if target_state == "tracked" else "applied_at"
@@ -142,11 +145,8 @@ def apply_action(conn, action, event_id):
         f"UPDATE events SET state = ?, {ts_column} = ?, updated_at = ? WHERE event_id = ?",
         (target_state, now, now, event_id),
     )
-    conn.execute(
-        "INSERT INTO action_log (event_id, action, result, occurred_at) VALUES (?, ?, ?, ?)",
-        (event_id, action, "ok", now),
-    )
     conn.commit()
+    log_action(conn, event_id, action, "ok")
     row = conn.execute("SELECT * FROM events WHERE event_id = ?", (event_id,)).fetchone()
     # (2.5 note: a future calendar trigger attaches exactly here, after a
     #  successful "ok" transition: POST event details to an n8n webhook that
