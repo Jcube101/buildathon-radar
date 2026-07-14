@@ -702,6 +702,222 @@ class TestFetchLuma:
         assert call_count["n"] == 5
 
 
+class TestCvPrefilter:
+    def test_featured_fetch_tag_always_passes(self):
+        assert fetcher._cv_passes_prefilter({"_cv_featured_fetch": True, "location": "Other"})
+
+    def test_cv_event_flag_passes(self):
+        assert fetcher._cv_passes_prefilter({"CVEvent": True, "location": "Other"})
+
+    def test_hackathon_type_passes(self):
+        assert fetcher._cv_passes_prefilter({"type": "HACKATHON", "location": "Other"})
+        assert fetcher._cv_passes_prefilter({"type": "hackathon", "location": "Other"})
+
+    def test_india_location_passes(self):
+        assert fetcher._cv_passes_prefilter({"location": "Bengaluru, India"})
+        assert fetcher._cv_passes_prefilter({"location": "Mumbai, India"})
+
+    def test_remote_passes(self):
+        assert fetcher._cv_passes_prefilter({"location": "Remote"})
+
+    def test_generic_us_conference_dropped(self):
+        assert not fetcher._cv_passes_prefilter({"location": "San Francisco, CA", "type": None})
+
+    def test_real_fixture_entries(self):
+        data = load_fixture("cv_approved_sample.json")
+        by_name = {e["name"]: e for e in data["events"]}
+        assert fetcher._cv_passes_prefilter(by_name["Encode Hackathon and Conference"])
+        assert not fetcher._cv_passes_prefilter(by_name["AI Builders Berlin"])
+
+
+class TestCvInWindow:
+    TODAY = "2026-07-15"
+    HORIZON = "2026-09-13"
+
+    def test_future_within_window_kept(self):
+        assert fetcher._cv_in_window({"startDateTime": "2026-08-01 00:00:00"}, self.TODAY, self.HORIZON)
+
+    def test_beyond_horizon_dropped(self):
+        assert not fetcher._cv_in_window({"startDateTime": "2028-01-01 00:00:00"}, self.TODAY, self.HORIZON)
+
+    def test_no_start_date_dropped(self):
+        assert not fetcher._cv_in_window({"startDateTime": ""}, self.TODAY, self.HORIZON)
+
+    def test_started_but_still_ongoing_kept(self):
+        entry = {"startDateTime": "2026-07-01 00:00:00", "endDateTime": "2026-07-20 00:00:00"}
+        assert fetcher._cv_in_window(entry, self.TODAY, self.HORIZON)
+
+    def test_already_ended_dropped(self):
+        entry = {"startDateTime": "2026-07-01 00:00:00", "endDateTime": "2026-07-10 00:00:00"}
+        assert not fetcher._cv_in_window(entry, self.TODAY, self.HORIZON)
+
+
+class TestNormaliseCerebralValley:
+    def test_real_fixture_hackathon(self):
+        data = load_fixture("cv_approved_sample.json")
+        entry = next(e for e in data["events"] if e["name"] == "Encode Hackathon and Conference")
+        n = fetcher.normalise_cerebralvalley(entry)
+        assert n["source"] == "Cerebral Valley"
+        assert n["url"] == "https://luma.com/encode-london-2026"  # canonicalized from lu.ma if applicable
+        assert n["themes"] == ["Hackathon"]
+        assert n["host"] == "Unknown"
+        _assert_no_unexpected_nones(n)
+
+    def test_lu_ma_url_canonicalized(self):
+        data = load_fixture("cv_approved_sample.json")
+        entry = next(e for e in data["events"] if e["name"] == "AI Builders Berlin")
+        n = fetcher.normalise_cerebralvalley(entry)
+        assert n["url"] == "https://luma.com/berlin-oct20"
+
+    def test_featured_tag_adds_theme(self):
+        entry = {"name": "T", "url": "https://a.com", "_cv_featured_fetch": True}
+        n = fetcher.normalise_cerebralvalley(entry)
+        assert "Cerebral Valley Featured" in n["themes"]
+
+    def test_remote_maps_to_online(self):
+        entry = {"name": "T", "url": "https://a.com", "location": "Remote"}
+        n = fetcher.normalise_cerebralvalley(entry)
+        assert n["location"] == "Online"
+        assert n["mode"] == "online"
+
+    def test_missing_fields_fallback(self):
+        n = fetcher.normalise_cerebralvalley({})
+        assert n["title"] == "Unknown"
+        assert n["url"] == ""
+        assert n["host"] == "Unknown"
+        assert n["published"] == "Unknown"
+        assert n["location"] == "Unknown"
+        assert n["mode"] == "in-person"
+        assert n["prize"] == ""
+        assert n["themes"] == []
+        assert n["event_start"] is None
+        assert n["event_end"] is None
+
+    def test_summary_falls_back_to_description_then_title(self):
+        entry = {"name": "T", "url": "https://a.com", "description": "Long form text."}
+        n = fetcher.normalise_cerebralvalley(entry)
+        assert n["summary"] == "Long form text."
+        entry2 = {"name": "T", "url": "https://a.com"}
+        n2 = fetcher.normalise_cerebralvalley(entry2)
+        assert n2["summary"] == "T"
+
+    def test_date_parts_extracted_from_naive_datetime_strings(self):
+        entry = {
+            "name": "T", "url": "https://a.com",
+            "startDateTime": "2026-08-01 18:00:00", "endDateTime": "2026-08-02 02:00:00",
+        }
+        n = fetcher.normalise_cerebralvalley(entry)
+        assert n["event_start"] == "2026-08-01"
+        assert n["event_end"] == "2026-08-02"
+        assert n["dates"] == "Aug 01, 2026 to Aug 02, 2026"
+
+
+class TestFetchCerebralValley:
+    def _fake_responses(self, featured, count, pages):
+        """pages: list of event-lists returned in order for successive
+        approved-window requests."""
+        calls = {"n": 0}
+        page_iter = iter(pages)
+
+        class FakeResp:
+            def __init__(self, data):
+                self._data = data
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return self._data
+
+        def fake_get(url, params=None, headers=None, timeout=None):
+            if params.get("featured"):
+                return FakeResp({"events": featured})
+            if params.get("limit") == 1:
+                return FakeResp({"totalCount": count})
+            return FakeResp({"events": next(page_iter)})
+
+        return fake_get
+
+    def test_featured_and_hackathon_kept_conference_dropped(self, monkeypatch):
+        today = datetime.now().strftime("%Y-%m-%d")
+        future = (datetime.now() + timedelta(days=5)).strftime("%Y-%m-%d")
+        page = [
+            {"id": "1", "name": "Featured-window Hackathon", "url": "https://a.com/1",
+             "type": "HACKATHON", "location": "London, UK", "startDateTime": f"{future} 00:00:00"},
+            {"id": "2", "name": "Generic US Conference", "url": "https://a.com/2",
+             "type": None, "location": "San Francisco, CA", "startDateTime": f"{future} 00:00:00"},
+        ]
+        fake_get = self._fake_responses(featured=[], count=100, pages=[page])
+        monkeypatch.setattr(fetcher.requests, "get", fake_get)
+        monkeypatch.setattr(fetcher.time, "sleep", lambda s: None)
+        items, error = fetcher.fetch_cerebralvalley()
+        assert error is None
+        titles = [i["title"] for i in items]
+        assert "Featured-window Hackathon" in titles
+        assert "Generic US Conference" not in titles
+
+    def test_featured_events_always_included(self, monkeypatch):
+        future = (datetime.now() + timedelta(days=5)).strftime("%Y-%m-%d")
+        featured = [{"id": "f1", "name": "Featured Thing", "url": "https://a.com/f1",
+                     "location": "San Francisco, CA", "startDateTime": f"{future} 00:00:00"}]
+        fake_get = self._fake_responses(featured=featured, count=100, pages=[[]])
+        monkeypatch.setattr(fetcher.requests, "get", fake_get)
+        monkeypatch.setattr(fetcher.time, "sleep", lambda s: None)
+        items, error = fetcher.fetch_cerebralvalley()
+        assert error is None
+        assert any(i["title"] == "Featured Thing" for i in items)
+        assert any("Cerebral Valley Featured" in i["themes"] for i in items)
+
+    def test_empty_url_skipped(self, monkeypatch):
+        future = (datetime.now() + timedelta(days=5)).strftime("%Y-%m-%d")
+        page = [{"id": "1", "name": "No URL Hackathon", "url": "",
+                 "type": "HACKATHON", "location": "London, UK", "startDateTime": f"{future} 00:00:00"}]
+        fake_get = self._fake_responses(featured=[], count=100, pages=[page])
+        monkeypatch.setattr(fetcher.requests, "get", fake_get)
+        monkeypatch.setattr(fetcher.time, "sleep", lambda s: None)
+        items, error = fetcher.fetch_cerebralvalley()
+        assert error is None
+        assert items == []
+
+    def test_dedupes_by_id(self, monkeypatch):
+        future = (datetime.now() + timedelta(days=5)).strftime("%Y-%m-%d")
+        entry = {"id": "dup", "name": "Dup Hackathon", "url": "https://a.com/dup",
+                  "type": "HACKATHON", "location": "London, UK", "startDateTime": f"{future} 00:00:00"}
+        featured = [entry]
+        page = [entry]
+        fake_get = self._fake_responses(featured=featured, count=100, pages=[page])
+        monkeypatch.setattr(fetcher.requests, "get", fake_get)
+        monkeypatch.setattr(fetcher.time, "sleep", lambda s: None)
+        items, error = fetcher.fetch_cerebralvalley()
+        assert error is None
+        assert len(items) == 1
+
+    def test_request_failure_returns_error_shape(self, monkeypatch):
+        monkeypatch.setattr(fetcher.requests, "get", _raise)
+        items, error = fetcher.fetch_cerebralvalley()
+        assert items == []
+        assert error == "boom"
+
+    def test_tail_paging_stops_when_page_crosses_into_past(self, monkeypatch):
+        today = datetime.now().strftime("%Y-%m-%d")
+        future = (datetime.now() + timedelta(days=5)).strftime("%Y-%m-%d")
+        past = (datetime.now() - timedelta(days=100)).strftime("%Y-%m-%d")
+        future_page = [{"id": "1", "name": "Future Hackathon", "url": "https://a.com/1",
+                        "type": "HACKATHON", "location": "London, UK", "startDateTime": f"{future} 00:00:00"}]
+        past_page = [{"id": "2", "name": "Past Hackathon", "url": "https://a.com/2",
+                     "type": "HACKATHON", "location": "London, UK", "startDateTime": f"{past} 00:00:00"}]
+        # totalCount=200 with page limit 100 -> first page at offset=100 (future),
+        # second page at offset=0 (past); paging should stop after crossing into the past
+        fake_get = self._fake_responses(featured=[], count=200, pages=[future_page, past_page])
+        monkeypatch.setattr(fetcher.requests, "get", fake_get)
+        monkeypatch.setattr(fetcher.time, "sleep", lambda s: None)
+        items, error = fetcher.fetch_cerebralvalley()
+        assert error is None
+        titles = [i["title"] for i in items]
+        assert "Future Hackathon" in titles
+        assert "Past Hackathon" not in titles  # outside the upcoming window, filtered by _cv_in_window
+
+
 class TestResurfaceLogic:
     """Date-aware resurface behaviour, replacing the old fixed-45-day-from-
     first-seen suppression: a future event stays hidden until it is within

@@ -511,6 +511,89 @@ def normalise_luma(entry):
     }
 
 
+def _cv_in_window(entry, today_str, horizon_str):
+    """True if the event starts within [today, horizon], or already started
+    but has not yet ended. Used to trim Cerebral Valley's full ~3900-event
+    ledger (no server-side date filter exists) down to the upcoming window
+    before the structured pre-filter runs."""
+    start = (entry.get("startDateTime") or "")[:10]
+    if not start:
+        return False
+    if start > horizon_str:
+        return False
+    if start >= today_str:
+        return True
+    end = (entry.get("endDateTime") or "")[:10]
+    return bool(end) and end >= today_str
+
+
+def _cv_passes_prefilter(entry):
+    """Structured, field-only pre-filter (no content judgment, so no
+    hallucination surface): keeps an upcoming-window Cerebral Valley event
+    iff it is CV-featured, CV-curated, a hackathon, or geographically
+    relevant (India or fully remote). See docs/V2-SOURCING-PLAN.md section 2
+    for the measured effect (roughly 300 events down to 10 to 30)."""
+    if entry.get("_cv_featured_fetch"):
+        return True
+    if entry.get("CVEvent"):
+        return True
+    if (entry.get("type") or "").upper() == "HACKATHON":
+        return True
+    location = entry.get("location") or ""
+    if "India" in location or "Bengaluru" in location or "Bangalore" in location:
+        return True
+    if location.strip() == "Remote":
+        return True
+    return False
+
+
+def normalise_cerebralvalley(entry):
+    title = entry.get("name") or "Unknown"
+    url = _canonicalize_url((entry.get("url") or "").strip())
+
+    summary = (entry.get("descriptionSummary") or entry.get("description") or "").strip()[:500]
+    if not summary:
+        summary = title
+
+    event_start = (entry.get("startDateTime") or "")[:10] or None
+    event_end = (entry.get("endDateTime") or "")[:10] or None
+    published = event_start or "Unknown"
+
+    start_human = _format_human_date(event_start)
+    end_human = _format_human_date(event_end)
+    if start_human and end_human:
+        dates = f"{start_human} to {end_human}"
+    elif start_human:
+        dates = start_human
+    else:
+        dates = ""
+
+    location_raw = entry.get("location") or "Unknown"
+    is_remote = location_raw.strip() == "Remote"
+    location = "Online" if is_remote else location_raw
+    mode = "online" if is_remote else "in-person"
+
+    themes = ["Hackathon"] if (entry.get("type") or "").upper() == "HACKATHON" else []
+    if entry.get("_cv_featured_fetch"):
+        themes = themes + ["Cerebral Valley Featured"]
+
+    return {
+        "source": "Cerebral Valley",
+        "title": title,
+        "url": url,
+        "summary": summary,
+        "published": published,
+        "location": location,
+        "mode": mode,
+        "host": "Unknown",
+        "dates": dates,
+        "prize": "",
+        "themes": themes,
+        "event_start": event_start,
+        "event_end": event_end,
+    }
+
+
 def fetch_devpost():
     """Returns (items, error). error is None on success."""
     items = []
@@ -620,6 +703,84 @@ def fetch_luma():
         return items, None
     except Exception as e:
         print(f"  WARNING: Luma fetch error: {e}")
+        return [], str(e)
+
+
+def fetch_cerebralvalley():
+    """Returns (items, error). error is None on success.
+
+    Built and tested but gated off in the live SOURCES list this run by
+    ENABLE_CV_SOURCE (see the constant's comment near the top of this file
+    and ROADMAP.md for why). The approved-events endpoint has no
+    server-side date filter and returns its full ~3900-event ledger sorted
+    ascending by start date, so this pages backward from the tail (the most
+    future events) with a runaway guard, collects the upcoming window, then
+    applies the structured pre-filter before normalising anything.
+    """
+    items = []
+    seen_ids = set()
+    try:
+        featured_resp = requests.get(
+            CV_API_URL, params={"featured": "true"}, headers=HEADERS, timeout=30
+        )
+        featured_resp.raise_for_status()
+        featured_events = (featured_resp.json() or {}).get("events") or []
+
+        count_resp = requests.get(
+            CV_API_URL,
+            params={"approved": "true", "limit": 1, "offset": 0},
+            headers=HEADERS,
+            timeout=30,
+        )
+        count_resp.raise_for_status()
+        total_count = (count_resp.json() or {}).get("totalCount") or 0
+
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        collected = [{**e, "_cv_featured_fetch": True} for e in featured_events]
+
+        offset = max(total_count - CV_PAGE_LIMIT, 0)
+        pages_fetched = 0
+        while pages_fetched < CV_MAX_PAGES:
+            time.sleep(SOURCE_REQUEST_DELAY_S)
+            resp = requests.get(
+                CV_API_URL,
+                params={"approved": "true", "limit": CV_PAGE_LIMIT, "offset": offset},
+                headers=HEADERS,
+                timeout=30,
+            )
+            resp.raise_for_status()
+            page_events = (resp.json() or {}).get("events") or []
+            collected.extend(page_events)
+            pages_fetched += 1
+            if not page_events or offset == 0:
+                break
+            earliest = min((e.get("startDateTime") or "9999")[:10] for e in page_events)
+            if earliest < today_str:
+                break
+            offset = max(offset - CV_PAGE_LIMIT, 0)
+
+        horizon_str = (datetime.now() + timedelta(days=CV_WINDOW_DAYS)).strftime("%Y-%m-%d")
+        for entry in collected:
+            event_id = entry.get("id")
+            if event_id:
+                if event_id in seen_ids:
+                    continue
+                seen_ids.add(event_id)
+            if not _cv_in_window(entry, today_str, horizon_str):
+                continue
+            if not _cv_passes_prefilter(entry):
+                continue
+            if not (entry.get("url") or "").strip():
+                print(f"  WARNING: Cerebral Valley event skipped, no url: {entry.get('name')}")
+                continue
+            try:
+                items.append(normalise_cerebralvalley(entry))
+            except Exception:
+                continue
+
+        return items, None
+    except Exception as e:
+        print(f"  WARNING: Cerebral Valley fetch error: {e}")
         return [], str(e)
 
 
