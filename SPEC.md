@@ -48,6 +48,74 @@ The event URL is not returned directly; it is constructed as
 `https://{slug}.devfolio.co/` and was verified live to resolve. Dates are ISO
 8601 UTC and are converted to IST before taking the date part.
 
+### Luma (Bengaluru meetups, showcases, and community hackathons)
+
+`GET https://api.luma.com/discover/get-paginated-events?discover_place_api_id=discplace-G0tGUVYwl7T17Sb&pagination_limit=50`
+
+An undocumented but public JSON API behind Luma's own discover pages, found
+by inspecting the network calls `luma.com/bengaluru` makes (the same
+undocumented-but-public standing as Devpost's list API). No auth, no key.
+Paginates via `pagination_cursor` from the response's `next_cursor` while
+`has_more` is true, capped at 5 pages as a runaway guard.
+
+Response: `{"entries": [{"api_id": ..., "event": {...}, "calendar": {...},
+"hosts": [...]}, ...], "has_more": bool, "next_cursor": str}`. The event's
+own `start_at`/`end_at` are ISO 8601 UTC, converted to IST before taking the
+date part, same as Devfolio. `geo_address_info.city_state` supplies
+location; `location_type` distinguishes online from offline. There is no
+prize field and no themes field on this feed, so `prize` is always `""` and
+`themes` is always `[]`.
+
+Host derivation is the one genuinely tricky part: Luma events are commonly
+hosted under a personal calendar rather than an organisation's, so
+`calendar.name` is `"Personal"` for many entries and useless as a host
+label. `normalise_luma` falls back, in order: the calendar's own name when
+it is not `"Personal"`, else the first name in the entry's `hosts` list,
+else `"Unknown"`.
+
+Caveat, scoped deliberately: Luma also has a `cat-ai` category feed
+(`discover_category_api_id=cat-ai`) that returns AI-tagged events ranked by
+the requesting IP's inferred location. From jobpi this happened to also be
+Bengaluru-scoped, but that geography is undocumented and could shift
+silently if Luma changes its ranking or the Pi's network path. This build
+uses the Bengaluru place feed only, which is a deterministic city id, not
+an IP inference; the `cat-ai` feed is documented in
+`docs/V2-SOURCING-PLAN.md` as a future option, not wired in.
+
+### Cerebral Valley (built, currently gated off, see Known limitations)
+
+`GET https://api.cerebralvalley.ai/v1/public/event/pull?approved=true&limit=100&offset=N`
+`GET https://api.cerebralvalley.ai/v1/public/event/pull?featured=true`
+
+Another undocumented public JSON API, found by downloading
+`cerebralvalley.ai/events`'s client-fetched JS bundles and tracing the
+network call (the page's own server HTML carries no event data). No auth.
+The site host's `robots.txt` disallows its own `/api/`, but this is a
+different host, `api.cerebralvalley.ai`, which serves no robots file.
+
+The endpoint has no server-side date or sort filter: `approved=true`
+returns the entire event ledger (roughly 3900 events at time of writing),
+sorted ascending by start date, oldest first, `limit` capped at 100
+server-side. `fetch_cerebralvalley` therefore reads `totalCount` from a
+cheap `limit=1` call, then pages backward from the tail
+(`offset = totalCount - 100`, stepping back by 100) until a page's earliest
+event falls before today, capped at 6 pages as a runaway guard. `featured`
+returns a small hand-curated set (3 events when last checked) with no
+paging needed.
+
+Because the upcoming window is roughly 300 events, mostly generic
+non-India conference listings, a structured field-only pre-filter runs
+before normalising anything: an event is kept only if it came from the
+`featured` call, carries `CVEvent: true`, has `type == "HACKATHON"`, or its
+`location` mentions India/Bengaluru/Bangalore or is exactly `"Remote"`.
+Measured effect: roughly 300 candidates down to 10 to 30 kept per run.
+There is no organiser field in the payload, so `host` is always
+`"Unknown"`; `descriptionSummary` (a pre-written short blurb) feeds
+`summary` when present, falling back to `description`. A `featured` event
+gets `"Cerebral Valley Featured"` appended to its `themes` list, a real
+structured signal the Claude prompt credits as a modest host-prestige
+boost (see The Claude filter, below).
+
 ### Rejected for v1: Unstop
 
 `GET https://unstop.com/api/public/opportunity/search-result?opportunity=hackathons&per_page=10&oppstatus=open&searchTerm=ai`
@@ -59,7 +127,7 @@ richer structured fields. Left as a documented v2 option.
 
 ```python
 {
-    "source":    "Devpost" | "Devfolio",
+    "source":    "Devpost" | "Devfolio" | "Luma" | "Cerebral Valley",
     "title":     str,
     "url":       str,   # dedup key, guard key
     "summary":   str,   # trimmed to 500 chars
@@ -98,6 +166,13 @@ components. Geography is a bonus for local relevance, not a gate that can bury
 an otherwise excellent online event. This was a specific requirement from the
 project owner, who has personally won a notable global online buildathon.
 
+The system prompt also names Luma and Cerebral Valley as sources and tells
+the model not to auto-demote a well-matched meetup or community showcase
+just because it lacks the word "hackathon," and to treat the
+`"Cerebral Valley Featured"` theme tag (set by `fetch_cerebralvalley` on
+events from its `featured=true` call) as a small positive signal inside
+the existing host prestige component, not a new scoring axis.
+
 Output is a single JSON object (`picks`, `skipped_count`, `week_note`). Parsing
 tries direct `json.loads`, then strips code fences, then extracts the
 substring between the first `{` and last `}`. If all three fail, one retry
@@ -116,11 +191,29 @@ used, only exact and trailing-slash-normalised comparison.
 
 ## Cache and dedup
 
-`cache.json` is a flat `{url: date_first_seen}` map, TTL 45 days (longer than
-signal-digest's 21, since hackathon registration windows commonly run for
-weeks and a 21 day TTL would re-announce a still-open event mid-window). An
-item still open after 45 days resurfaces once. `--dry-run` neither reads nor
-writes the cache, so it is safe to run repeatedly.
+`cache.json` is a per-event-record map keyed on the composite `event_id`
+(normalized host + normalized title + start date; see `fetcher.py` for the
+full record shape and the date-aware resurface logic). `--dry-run` neither
+reads nor writes the cache, so it is safe to run repeatedly.
+
+Minimal cross-source collision handling (ROADMAP.md 2.6) sits on top of
+this keying, now that Luma and Cerebral Valley make cross-source overlap
+real rather than hypothetical: every URL is canonicalized before dedup
+(`lu.ma` folds into `luma.com`, `http://` upgrades to `https://`), so a
+Cerebral Valley listing that links out to a Luma event collapses with that
+same event fetched directly from Luma via the existing URL index. Each
+cache record also carries a `norm_title` field; when an incoming item's URL
+and composite id both miss, an exact normalized-title match against an
+existing record within a 90 day date window reuses that record's
+`event_id` instead of minting a second one, and the new URL is appended to
+the existing record's `urls` array. This is deliberately narrow (exact
+title match only, no fuzzy or LLM-assisted scoring): live recon on
+2026-07-15 found a real duplicate this catches ("Build with Gemini XPRIZE"
+on both Devpost and Cerebral Valley, dates 90 days apart) and a real
+near-miss that fuzzy matching would have wrongly merged (two differently
+named hackathons sharing two-thirds of their words on the same date). Full
+entity resolution (host+date anchoring, LLM-assisted matching) stays
+deferred; see `docs/V2-SOURCING-PLAN.md` section 3.
 
 ## Digest and email
 
@@ -147,9 +240,10 @@ attempts a failure email (only on a non-dry run), and exits 1.
 
 ## v1 non-goals
 
-No Luma, no Cerebral Valley, no social sources (Twitter, LinkedIn), no
-scraping, no Apify, no Google Sheets, no WhatsApp. `cache.json` and Gmail SMTP
-are the only state and delivery mechanisms.
+No social sources (Twitter, LinkedIn), no scraping, no Apify, no Google
+Sheets, no WhatsApp. `cache.json` and Gmail SMTP are the only state and
+delivery mechanisms. (Luma and Cerebral Valley, originally v1 non-goals,
+shipped as the v2 sourcing expansion below.)
 
 ## v2 tracker (Units A and B): Track/Applied and the participation log
 
@@ -189,15 +283,26 @@ card, a "Tracked" reminder strip (omitted when empty), and an always-visible
 participation log (with a one-line empty state). The plain-text digest is
 unchanged.
 
+## v2 sourcing expansion: Luma and Cerebral Valley
+
+Both shipped 2026-07-15; see `docs/V2-SOURCING-PLAN.md` for the full recon
+and build plan. Luma (Bengaluru place feed) is live in `SOURCES`.
+Cerebral Valley is fully built and tested (`fetch_cerebralvalley`,
+`normalise_cerebralvalley`) but deliberately not active: the module-level
+`ENABLE_CV_SOURCE` constant in `fetcher.py` defaults to `False` so Luma's
+real weekly behaviour can be observed on its own before a second new
+source is added; see `ROADMAP.md` for the staged-activation decision and
+when to flip it.
+
 ## v2 backlog
 
-1. Cerebral Valley as a source (the Google DeepMind Bangalore Hackathon was
-   listed there and found too late on Twitter).
-2. Luma as a source (India Builds with Claude, Razorpay x Anthropic, was on
-   Luma and reached the owner only via a mentor).
-3. Unstop as a third API source, if college-tier coverage becomes wanted.
-4. Deadline-reminder mode (a second mention as a cached event's close date nears).
-5. Per-event calendar (.ics) attachments.
-6. Lifecycle states and outcomes (ROADMAP.md 2.4), calendar integration
-   (2.5), and cross-source entity resolution (2.6), all deferred; see
-   `docs/V2-TRACKER-PLAN.md` for the tracker's full architecture.
+1. Unstop as a third API source, if college-tier coverage becomes wanted.
+2. Deadline-reminder mode (a second mention as a cached event's close date nears).
+3. Per-event calendar (.ics) attachments.
+4. Lifecycle states and outcomes (ROADMAP.md 2.4), calendar integration
+   (2.5), and full cross-source entity resolution beyond the minimal exact-
+   title fix above (2.6), all deferred; see `docs/V2-TRACKER-PLAN.md` for
+   the tracker's full architecture.
+5. Luma's IP-geo-scoped `cat-ai` category feed and additional Indian
+   cities' place feeds, documented but not wired in; see
+   `docs/V2-SOURCING-PLAN.md`.

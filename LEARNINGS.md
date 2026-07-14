@@ -113,3 +113,73 @@ does not need to be in Bengaluru to earn the top tier. This was confirmed live
 in the first successful dry run: a Gemini-branded XPRIZE hackathon and an
 OpenAI-hosted event both landed in `must_see`, entirely online, purely on
 theme and host.
+
+## "No API" is not the same as "no free API"
+
+Both Luma and Cerebral Valley looked, at a glance, like scraping-only
+sources: neither publishes developer docs, and Cerebral Valley's own
+`/events` page ships zero event data in its server-rendered HTML (it is
+fully client-fetched). Neither actually required scraping. Luma's discover
+pages call a plain JSON endpoint (`api.luma.com/discover/get-paginated-events`)
+directly, unauthenticated, exactly the shape Devpost's `devpost.com/api/hackathons`
+turned out to be back in v1. Cerebral Valley's was harder to find but no
+less real: downloading `cerebralvalley.ai/events`'s ~35 JS chunks and
+grepping them for fetch/URL construction surfaced `api.cerebralvalley.ai/v1/public/event/pull`
+directly. The lesson repeats from v1: absence of documentation is not
+evidence of absence of a free API. Before reaching for scraping or a paid
+service, check what the site's own frontend actually calls, first via the
+rendered page's embedded JSON (Luma's `__NEXT_DATA__`), then by tracing the
+client-side JS bundles if the page is fully client-rendered (Cerebral
+Valley). Both approaches were plain reconnaissance, no browser automation,
+no headless rendering.
+
+## Cerebral Valley's endpoint ignores every date/sort parameter it accepts
+
+`api.cerebralvalley.ai/v1/public/event/pull?approved=true` returns its
+entire event history, sorted ascending by start date, oldest first, with no
+way to ask for "upcoming only." Probing plausible parameter names
+(`upcoming`, `timeframe`, `startsAfter`, `order`, `sort`, `past`,
+`minEndDateTime`) confirmed each is silently accepted and silently ignored;
+the frontend evidently filters client-side after fetching everything. The
+practical fix, and the one this build uses, is to read `totalCount` cheaply
+(a `limit=1` call) and page backward from the tail until a page's earliest
+event crosses into the past, rather than trying to guess a working filter
+parameter. Worth remembering for any future undocumented API: a parameter
+name that "looks right" and returns 200 is not evidence that it does
+anything; only a response whose content actually changes is evidence.
+
+## A live near-miss is worth more than a hypothetical one
+
+ROADMAP.md's entity-resolution section (2.6) had deferred fuzzy or
+LLM-assisted cross-source matching pending "real observed collisions," on
+the theory that designing against a hypothetical is guesswork. The first
+live four-source scan, on the same day Luma and Cerebral Valley were
+added, produced exactly one real duplicate ("Build with Gemini XPRIZE" on
+Devpost and Cerebral Valley) and, in the same scan, one real false-positive
+candidate: two differently named hackathons on the same date sharing
+two-thirds of their normalized words. That single scan did more to settle
+the fuzzy-matching question than any amount of design discussion could
+have: it is direct evidence that a similarity threshold loose enough to
+catch real duplicates would also catch real false positives, in the same
+data set, on the same day. The fix shipped is deliberately narrow (exact
+normalized-title match within a date window, nothing looser) precisely
+because the counterexample was sitting right there in the first live pull.
+
+## A same-run duplicate that only shows up when merging same-day discoveries
+
+Building the exact-title merge surfaced an edge case that had nothing to
+do with title matching itself: `_should_show`'s resurface logic was written
+to answer "should an already-known event resurface this week," reasoning
+about a record's age since it was first cached. It was never designed to
+answer "was this record created a few milliseconds ago, earlier in this
+same function call." When two sources discover the same event for the
+first time ever, in the same run, and its date happens to already be
+inside the 14 day resurface window, the record the first source creates
+looks, from `_should_show`'s point of view, exactly like a legitimately
+resurfacing event to the second source's occurrence, so it would show
+again, doubling the digest. The fix is a same-run-only guard
+(`ids_shown_this_run`) that caps every `event_id` at one shown item per
+run regardless of what `_should_show` computes. Nothing about this was
+visible from reading `_should_show` in isolation; it only surfaced by
+tracing through what happens when a second source's item for a brand-new
+event lands on top of the first source's item within the same call.

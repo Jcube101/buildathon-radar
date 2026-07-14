@@ -4,13 +4,14 @@ Context for Claude or any assistant working in this repo.
 
 ## What this is
 
-Buildathon Radar is a personal AI agent that scans Devpost and Devfolio every
-week, filters events for relevance to an AI product manager based in
-Bengaluru, India, and emails a ranked digest every Sunday at 5:00 PM IST. It
-is the sibling project to signal-digest, reusing its spine (normalised item
-dict, single Claude call, `cache.json` dedup, markdown to HTML email,
-`--dry-run`, systemd timer) but rebuilding the source and hallucination-guard
-layers from scratch.
+Buildathon Radar is a personal AI agent that scans Devpost, Devfolio, and
+Luma every week (Cerebral Valley is built and tested but currently gated
+off, see Known limitations), filters events for relevance to an AI product
+manager based in Bengaluru, India, and emails a ranked digest every Sunday
+at 5:00 PM IST. It is the sibling project to signal-digest, reusing its
+spine (normalised item dict, single Claude call, `cache.json` dedup,
+markdown to HTML email, `--dry-run`, systemd timer) but rebuilding the
+source and hallucination-guard layers from scratch.
 
 ## Owner and machine
 
@@ -29,7 +30,8 @@ with extended thinking explicitly disabled (see `LEARNINGS.md` for why).
 
 ```
 buildathon_radar/
-    fetcher.py         Devpost + Devfolio fetch, normalise, cache.json dedup
+    fetcher.py         Devpost/Devfolio/Luma/Cerebral Valley fetch, normalise, cache.json dedup
+                       (ENABLE_CV_SOURCE near the top gates Cerebral Valley off by default)
     agent.py           claude-sonnet-5 call, scoring rubric, strict JSON output
     guard.py           programmatic anti-hallucination URL check
     digest.py          markdown/HTML assembly from validated picks (code-owned, not Claude)
@@ -43,7 +45,7 @@ scheduler/systemd/   digest service + timer, tracker service unit, install READM
 
 ## How it works, in one paragraph
 
-Both sources are free public JSON APIs, no scraping, no keys beyond what is
+All sources are free public JSON APIs, no scraping, no keys beyond what is
 already in `.env`. Fetched items are deduplicated against `cache.json` (per-event
 records, date-aware resurface logic) and normalised into a dict that includes
 `event_id`. Claude scores and tiers the survivors and returns JSON picks (url,
@@ -73,9 +75,16 @@ curl -s https://radar.job-joseph.com/                 # tracker health check
 
 ## Known limitations
 
-- v1 sources are Devpost and Devfolio only. Cerebral Valley and Luma, the two
-  sources that would have caught the actual missed events motivating this
-  project, are v2 backlog, not built (see `SPEC.md` and `ROADMAP.md`).
+- Cerebral Valley is fully built and tested (`fetch_cerebralvalley` in
+  `fetcher.py`) but gated off: `ENABLE_CV_SOURCE` defaults to `False`.
+  Luma went live alone so its real weekly behaviour could be observed
+  before adding a second new source at once; flip `ENABLE_CV_SOURCE` to
+  `True` about a week after 2026-07-15 to activate it (see `ROADMAP.md`).
+- Luma's own IP-geo-scoped `cat-ai` category feed is documented but not
+  used; only the deterministic Bengaluru place feed is wired in.
+- Luma and Cerebral Valley are both undocumented public JSON APIs, the same
+  standing Devpost's list API has had since v1: they can change or vanish
+  without notice. The source-health footer is the tripwire.
 - Devpost's list API has no ISO dates, only a human string; date parsing is
   best-effort and falls back to `"Unknown"` on anything it cannot parse.
 - The cache suppresses an event for 45 days after first sight, including
@@ -88,6 +97,9 @@ curl -s https://radar.job-joseph.com/                 # tracker health check
   `docs/V2-TRACKER-PLAN.md` is the full architecture and build plan for the
   v2 tracker (Units A and B: Track/Applied buttons, the participation log),
   now shipped; see `SPEC.md`'s v2 tracker section for the current summary.
+  `docs/V2-SOURCING-PLAN.md` is the full recon and build plan for the Luma
+  and Cerebral Valley sourcing expansion; see `SPEC.md`'s Sources section
+  for the current summary.
 - The tracker service (`tracker_service.py`) fails fast at startup if
   `TRACKER_SECRET` is unset in `.env`; it must never run without the ability
   to verify signed links. Lifecycle states beyond `seen`/`tracked`/`applied`

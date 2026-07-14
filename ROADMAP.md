@@ -80,23 +80,84 @@ Sections 2.4 (lifecycle/outcomes), 2.5 (calendar), and 2.6 (entity
 resolution) remain deferred, not built; see Section 2 below and
 `docs/V2-TRACKER-PLAN.md` for the full architecture this was built from.
 
+## Status: what shipped in the v2 sourcing expansion (Luma and Cerebral Valley)
+
+Built 2026-07-15 from `docs/V2-SOURCING-PLAN.md` (the full recon and build
+plan, including verified endpoint details, live example payloads, and the
+entity-resolution assessment).
+
+- [x] `fetch_luma()` / `normalise_luma()`: the undocumented public
+      `api.luma.com` discover API, Bengaluru place feed only (the
+      IP-personalised `cat-ai` category feed was evaluated and deliberately
+      not used, see Known limitations). Host derivation falls back from a
+      "Personal" calendar to the first listed human host. **Live in
+      `SOURCES` now.**
+- [x] `fetch_cerebralvalley()` / `normalise_cerebralvalley()`: the
+      undocumented public `api.cerebralvalley.ai` pull endpoint, found by
+      tracing the site's own JS bundles. No server-side date filter exists,
+      so this pages backward from the tail of the ~3900-event ledger and
+      applies a structured pre-filter (featured, CVEvent, HACKATHON, India,
+      Remote) to cut the ~300-event upcoming window to a relevant handful.
+      **Built, fully tested, deliberately NOT active.**
+- [x] **Staged activation decision:** `fetcher.ENABLE_CV_SOURCE` defaults to
+      `False`. Luma alone went live this run so its real weekly behaviour
+      (event volume, relevance, any API drift) can be observed
+      independently before a second new source is layered on top of it.
+      Flip `ENABLE_CV_SOURCE` to `True` in `fetcher.py` about a week after
+      this shipped (around 2026-07-22) to activate Cerebral Valley; no
+      other change is needed, since it is already wired into `SOURCES`,
+      the collision handling, and the agent prompt.
+- [x] Minimal cross-source collision handling (ROADMAP.md 2.6, scoped
+      narrowly): URL canonicalization (`lu.ma` folds into `luma.com`) so a
+      Cerebral Valley listing that links out to Luma collapses with that
+      same event via the existing URL-index dedup, plus an exact
+      normalized-title match within a 90 day window for cases the URL
+      index can't catch. **Deliberately exact-match only, no fuzzy or
+      LLM-assisted scoring:** live recon on 2026-07-15 found a real
+      duplicate this catches ("Build with Gemini XPRIZE" on both Devpost
+      and Cerebral Valley, recorded dates exactly 90 days apart) and,
+      separately, a real near-miss (two differently named hackathons
+      sharing two-thirds of their normalized words on the same date) that
+      fuzzy matching would have wrongly merged. That observed false
+      positive is the reason fuzzy/LLM-assisted matching stays off the
+      table; full entity resolution (2.6's options B and C) remains
+      deferred.
+- [x] `agent.py`: system prompt now names Luma and Cerebral Valley as
+      sources, tells the model not to auto-demote a meetup or community
+      showcase just because it isn't titled "hackathon," and credits a
+      `"Cerebral Valley Featured"` theme tag as a modest signal inside the
+      existing host prestige component (not a new scoring axis).
+- [x] Live dry run proof: "India Builds with Claude - Razorpay | Anthropic
+      | Peak XV", the exact event that motivated this whole project,
+      appeared as a Luma-sourced `must_see` pick (score 82) alongside
+      several other real Bengaluru Luma events, all scored correctly by
+      geography and host. Source-health footer showed exactly three
+      sources (Devpost, Devfolio, Luma); Cerebral Valley did not appear,
+      confirming the gate holds.
+- [x] Full pytest coverage for both fetchers, the pre-filter, the
+      canonicalizer, and the collision handling; existing suites
+      unaffected.
+
 ## v1 non-goals (still out of scope)
 
-No Luma, no Cerebral Valley, no other social sources, no scraping, no Apify,
-no Google Sheets, no WhatsApp, no web UI, no database beyond `cache.json`.
+No other social sources (Twitter, LinkedIn), no scraping, no Apify, no
+Google Sheets, no WhatsApp, no web UI, no database beyond `cache.json` and
+`tracker.db`. (Luma and Cerebral Valley, listed here in earlier versions of
+this file, shipped as the sourcing expansion above.)
 
 ## v2 backlog
 
-1. Cerebral Valley as a source (the Google DeepMind Bangalore Hackathon was
-   listed there and found too late on Twitter).
-2. Luma as a source (India Builds with Claude, Razorpay x Anthropic, was on
-   Luma and reached the owner only via a mentor).
-3. Unstop as a third API source, if college-tier coverage becomes wanted.
-4. Deadline-reminder mode (a second mention as a cached event's close date nears).
-5. Per-event calendar (.ics) attachments.
-6. The remainder of the tracker vision below (Section 2): lifecycle states
-   and outcomes (2.4), calendar integration (2.5), and cross-source entity
-   resolution (2.6). Sections 2.2 and 2.3 shipped; see the status above.
+1. Flip `ENABLE_CV_SOURCE` to activate Cerebral Valley, once Luma's first
+   live week has been observed (see the sourcing status above).
+2. Unstop as a third API source, if college-tier coverage becomes wanted.
+3. Deadline-reminder mode (a second mention as a cached event's close date nears).
+4. Per-event calendar (.ics) attachments.
+5. The remainder of the tracker vision below (Section 2): lifecycle states
+   and outcomes (2.4), calendar integration (2.5), and full cross-source
+   entity resolution beyond the minimal exact-title fix shipped above
+   (2.6). Sections 2.2 and 2.3 shipped; see the status above.
+6. Luma's IP-geo-scoped `cat-ai` category feed and place feeds for other
+   Indian cities, evaluated but not built; see `docs/V2-SOURCING-PLAN.md`.
 
 ---
 
@@ -197,3 +258,5 @@ Candidate approaches to evaluate when that data exists, in rough order of comple
 The tradeoff across all three is the same shape: normalization alone risks false collisions, fuzzy or LLM-assisted matching adds cost and tuning and its own failure modes. The right choice should be made by looking at real observed collisions once v2 sources are live, not by picking one now on priors. The v1 cache is already structured to make whichever approach is chosen a drop-in change rather than another migration: `event_id` is already a composite (not a bare URL), and `urls` is already an array precisely so a second source's URL for the same event can be appended to an existing record rather than forcing a new one.
 
 This is recorded as "evaluate whether this is worth building at all" when the time comes, not as a queued feature with an assumed yes.
+
+**Update, 2026-07-15:** the hypothetical above stopped being hypothetical the moment Luma and Cerebral Valley were added. Live recon that day found exactly one real duplicate ("Build with Gemini XPRIZE" on Devpost and Cerebral Valley) and, in the same scan, one real fuzzy near-miss (two differently named hackathons sharing two-thirds of their words on the same date) that a similarity-based matcher would have wrongly merged. That single data point was enough to justify a small slice of option (A), URL canonicalization plus an exact normalized-title match within a 90 day window, and enough to rule out option (C) outright: the near-miss is direct evidence that fuzzy or LLM-assisted matching would actively cause harm here, not just cost more. Options (B) and full (C) remain deferred exactly as this section originally described; see `docs/V2-SOURCING-PLAN.md` section 3 and `SPEC.md`'s Cache and dedup section for what was actually built.
