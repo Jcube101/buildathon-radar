@@ -160,10 +160,4 @@ Candidate approaches to evaluate when that data exists, in rough order of comple
 
 The tradeoff across all three is the same shape: normalization alone risks false collisions, fuzzy or LLM-assisted matching adds cost and tuning and its own failure modes. The right choice should be made by looking at real observed collisions once v2 sources are live, not by picking one now on priors. The v1 cache is already structured to make whichever approach is chosen a drop-in change rather than another migration: `event_id` is already a composite (not a bare URL), and `urls` is already an array precisely so a second source's URL for the same event can be appended to an existing record rather than forcing a new one.
 
-### 2.7 Feedback (thumbs up or down): lowest priority, possibly not worth building
-
-A thumbs-up/thumbs-down control on each digest pick was considered, to shape future scoring: more like this, less like this. Recorded here for completeness, flagged with a deliberate reservation rather than as a committed feature.
-
-The rubric is already hand-tunable in plain language: feedback happens in conversation ("exclude student hackathons," "boost corporate Bengaluru events," both real examples from this project's own history) and the system prompt gets edited directly. That loop is fast, transparent, and fully under direct control. A thumbs-based preference-learning loop is deceptively complex to build well (how many signals before a preference is trusted, how does it avoid overfitting to a handful of recent hackathons, how does it interact with a rubric that is also being hand-edited at the same time) and risks quietly drifting the scoring in a direction that is harder to reason about than a plain-language rubric edit. For a personal, single-user tool, manual rubric tuning may genuinely be the better mechanism forever, not just for now.
-
 This is recorded as "evaluate whether this is worth building at all" when the time comes, not as a queued feature with an assumed yes.
