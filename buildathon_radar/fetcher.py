@@ -204,7 +204,39 @@ def _new_record(event_id, url, today_str, item):
         "resurfaced": False,
         "event_start": item.get("event_start"),
         "event_end": item.get("event_end"),
+        "norm_title": _normalize_title(item.get("title", "")),
     }
+
+
+def _dates_within_window(date_a, date_b, window_days):
+    """True if two "YYYY-MM-DD" dates are close enough to be treated as the
+    same real-world event occurrence for the exact-title merge below. An
+    unknown date on either side is not evidence of a different date, so it
+    does not block a match; only two known, far-apart dates do."""
+    if not date_a or not date_b:
+        return True
+    try:
+        da = datetime.strptime(date_a, "%Y-%m-%d")
+        db = datetime.strptime(date_b, "%Y-%m-%d")
+    except ValueError:
+        return True
+    return abs((da - db).days) <= window_days
+
+
+def _find_title_match(norm_title, item_event_start, title_index):
+    """Minimal cross-source collision handling (ROADMAP.md 2.6,
+    docs/V2-SOURCING-PLAN.md section 3): looks for an existing record whose
+    normalized title exactly matches and whose date is within
+    TITLE_MERGE_WINDOW_DAYS. Exact match only, no similarity scoring: a real
+    near-miss (two differently-named events sharing two-thirds of their
+    words on the same date) was observed live during recon and is exactly
+    why this stays this narrow rather than growing into fuzzy matching."""
+    if not norm_title:
+        return None
+    for existing_id, existing_start in title_index.get(norm_title, []):
+        if _dates_within_window(existing_start, item_event_start, TITLE_MERGE_WINDOW_DAYS):
+            return existing_id
+    return None
 
 
 def _should_show(record, item_event_start, today_dt):
@@ -807,9 +839,24 @@ def fetch_events(dry_run=False):
         for u in record.get("urls") or []:
             url_index[u] = eid
 
+    # Cross-source title index (minimal collision handling, ROADMAP.md 2.6):
+    # legacy records without a norm_title simply never participate, which is
+    # fine, since a re-seen record acquires one the next time it is touched.
+    title_index = {}
+    for eid, record in cache.items():
+        nt = record.get("norm_title")
+        if nt:
+            title_index.setdefault(nt, []).append((eid, record.get("event_start")))
+
     all_items = []
     source_health = {}
     updates = {}
+    # Guarantees at most one item per event_id reaches the digest per run,
+    # even when two sources both contribute a "new" occurrence of it in the
+    # same run and one happens to land inside the resurface window (which
+    # _should_show alone cannot detect, since it only reasons about whether
+    # a record already existed before this run).
+    ids_shown_this_run = set()
 
     for source in SOURCES:
         name = source["name"]
@@ -828,14 +875,27 @@ def fetch_events(dry_run=False):
             if not url:
                 continue
 
-            event_id = url_index.get(url) or derive_event_id(item) or _legacy_event_id(url)
+            norm_title = _normalize_title(item.get("title", ""))
+            candidate_id = derive_event_id(item)
+
+            if url in url_index:
+                event_id = url_index[url]
+            elif candidate_id and (candidate_id in updates or candidate_id in cache):
+                event_id = candidate_id
+            else:
+                matched_id = _find_title_match(norm_title, item.get("event_start"), title_index)
+                event_id = matched_id or candidate_id or _legacy_event_id(url)
+
             item["event_id"] = event_id
             existing = updates.get(event_id) or cache.get(event_id)
 
             if existing is None:
                 fresh.append(item)
+                ids_shown_this_run.add(event_id)
                 updates[event_id] = _new_record(event_id, url, today_str, item)
                 url_index[url] = event_id
+                if norm_title:
+                    title_index.setdefault(norm_title, []).append((event_id, item.get("event_start")))
                 continue
 
             urls = list(existing.get("urls") or [])
@@ -843,6 +903,10 @@ def fetch_events(dry_run=False):
                 urls.append(url)
 
             show, new_status, new_resurfaced = _should_show(existing, item.get("event_start"), today_dt)
+            if event_id in ids_shown_this_run:
+                # Already represented in this run's digest by an earlier
+                # source's occurrence of the same event; never show twice.
+                show = False
 
             updates[event_id] = {
                 "event_id": event_id,
@@ -853,11 +917,15 @@ def fetch_events(dry_run=False):
                 "resurfaced": new_resurfaced,
                 "event_start": existing.get("event_start") or item.get("event_start"),
                 "event_end": existing.get("event_end") or item.get("event_end"),
+                "norm_title": existing.get("norm_title") or norm_title,
             }
             url_index[url] = event_id
+            if norm_title:
+                title_index.setdefault(norm_title, []).append((event_id, updates[event_id].get("event_start")))
 
             if show:
                 fresh.append(item)
+                ids_shown_this_run.add(event_id)
 
         source_health[name] = {"count": len(fresh), "error": None}
         all_items.extend(fresh)

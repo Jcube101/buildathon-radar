@@ -918,6 +918,171 @@ class TestFetchCerebralValley:
         assert "Past Hackathon" not in titles  # outside the upcoming window, filtered by _cv_in_window
 
 
+class TestExactTitleMerge:
+    """Minimal cross-source collision handling (ROADMAP.md 2.6). Both
+    scenarios below are reconstructed from real events observed live during
+    the sourcing recon on 2026-07-15 (docs/V2-SOURCING-PLAN.md section 3)."""
+
+    def _item(self, source, title, url, host, event_start, **overrides):
+        item = {
+            "source": source,
+            "title": title,
+            "url": url,
+            "summary": "s",
+            "published": event_start or "Unknown",
+            "location": "Online",
+            "mode": "online",
+            "host": host,
+            "dates": "d",
+            "prize": "",
+            "themes": [],
+            "event_start": event_start,
+            "event_end": None,
+        }
+        item.update(overrides)
+        return item
+
+    def test_gemini_xprize_scenario_merges_to_one_item(self, tmp_path, monkeypatch):
+        """Real recon finding: "Build with Gemini XPRIZE" appeared on Devpost
+        (event_start 2026-05-19, host XPRIZE) and Cerebral Valley
+        (event_start 2026-08-17, no host), exactly 90 days apart, the
+        boundary of TITLE_MERGE_WINDOW_DAYS. Devpost runs first in SOURCES,
+        so its item is the one that should survive; the second occurrence
+        must not double the digest."""
+        monkeypatch.chdir(tmp_path)
+        devpost_item = self._item(
+            "Devpost", "Build with Gemini XPRIZE", "https://xprize.devpost.com/",
+            "XPRIZE", "2026-05-19",
+        )
+        cv_item = self._item(
+            "Cerebral Valley", "Build with Gemini XPRIZE", "https://cerebralvalley.ai/e/xprize",
+            "Unknown", "2026-08-17",
+        )
+        monkeypatch.setattr(
+            fetcher,
+            "SOURCES",
+            [
+                {"name": "Devpost", "fetch": lambda: ([devpost_item], None)},
+                {"name": "Devfolio", "fetch": lambda: ([], None)},
+                {"name": "Cerebral Valley", "fetch": lambda: ([cv_item], None)},
+                {"name": "Luma", "fetch": lambda: ([], None)},
+            ],
+        )
+        items, health = fetcher.fetch_events(dry_run=False)
+        assert len(items) == 1
+        assert items[0]["source"] == "Devpost"  # earlier-priority source wins
+
+        with open(tmp_path / "cache.json") as f:
+            saved = json.load(f)
+        assert len(saved) == 1  # one record, not two
+        record = next(iter(saved.values()))
+        assert set(record["urls"]) == {
+            "https://xprize.devpost.com/",
+            "https://cerebralvalley.ai/e/xprize",
+        }
+
+    def test_ai_4_earth_vs_ai_internship_near_miss_stays_two_items(self, tmp_path, monkeypatch):
+        """Real recon finding: these two events share 67% of their
+        normalized words and fall on the same date, but are genuinely
+        different events. Exact-title-only matching (no fuzzy scoring) must
+        keep them separate."""
+        monkeypatch.chdir(tmp_path)
+        item_a = self._item(
+            "Devpost", "GatewayGS & The AEI Initiative: AI 4 Earth Hackathon",
+            "https://a.devpost.com/", "GatewayGS", "2026-07-25",
+        )
+        item_b = self._item(
+            "Luma", "AI Internship Hackathon", "https://luma.com/xyz",
+            "AI House", "2026-07-25",
+        )
+        monkeypatch.setattr(
+            fetcher,
+            "SOURCES",
+            [
+                {"name": "Devpost", "fetch": lambda: ([item_a], None)},
+                {"name": "Devfolio", "fetch": lambda: ([], None)},
+                {"name": "Luma", "fetch": lambda: ([item_b], None)},
+            ],
+        )
+        items, health = fetcher.fetch_events(dry_run=True)
+        assert len(items) == 2
+
+    def test_cv_link_to_luma_url_collapses_via_canonicalized_url_index(self, tmp_path, monkeypatch):
+        luma_item = fetcher.normalise_luma({
+            "event": {"api_id": "evt-1", "name": "Shared Event", "url": "abc123"},
+            "calendar": {}, "hosts": [],
+        })
+        cv_item = fetcher.normalise_cerebralvalley({
+            "id": "cv-1", "name": "Shared Event", "url": "https://lu.ma/abc123",
+        })
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(
+            fetcher,
+            "SOURCES",
+            [
+                {"name": "Devpost", "fetch": lambda: ([], None)},
+                {"name": "Devfolio", "fetch": lambda: ([], None)},
+                {"name": "Cerebral Valley", "fetch": lambda: ([cv_item], None)},
+                {"name": "Luma", "fetch": lambda: ([luma_item], None)},
+            ],
+        )
+        items, health = fetcher.fetch_events(dry_run=True)
+        assert len(items) == 1
+
+    def test_legacy_cache_record_without_norm_title_still_loads_and_functions(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        url = "https://acme.devpost.com/"
+        legacy_record = {
+            "event_id": "acme-foo-hackathon-2026-08-01",
+            "urls": [url],
+            "first_seen": "2026-06-01",
+            "last_shown": "2026-06-01",
+            "status": "seen",
+            "resurfaced": False,
+            "event_start": "2026-08-01",
+            "event_end": None,
+            # no norm_title key, simulating a pre-Phase-4 cache record
+        }
+        (tmp_path / "cache.json").write_text(json.dumps({legacy_record["event_id"]: legacy_record}))
+        item = self._item("Devpost", "Foo Hackathon", url, "Acme", "2026-08-01")
+        monkeypatch.setattr(
+            fetcher,
+            "SOURCES",
+            [
+                {"name": "Devpost", "fetch": lambda: ([item], None)},
+                {"name": "Devfolio", "fetch": lambda: ([], None)},
+            ],
+        )
+        items, health = fetcher.fetch_events(dry_run=False)  # must not raise
+        with open(tmp_path / "cache.json") as f:
+            saved = json.load(f)
+        record = saved[legacy_record["event_id"]]
+        assert record["norm_title"] == "foo hackathon"  # acquired on this touch
+
+    def test_same_run_duplicate_within_resurface_window_shows_once(self, tmp_path, monkeypatch):
+        """Guards the same-run edge case _should_show alone cannot detect:
+        two sources discover the same title for the first time, ever, and
+        its date happens to fall inside the resurface window. Without the
+        ids_shown_this_run guard, the second source's occurrence would also
+        pass _should_show (since the brand-new record has resurfaced=False),
+        producing a same-digest duplicate."""
+        monkeypatch.chdir(tmp_path)
+        near_start = (datetime.now() + timedelta(days=5)).strftime("%Y-%m-%d")
+        item_a = self._item("Devpost", "Same Event", "https://a.devpost.com/", "Acme", near_start)
+        item_b = self._item("Luma", "Same Event", "https://luma.com/same", "Acme", near_start)
+        monkeypatch.setattr(
+            fetcher,
+            "SOURCES",
+            [
+                {"name": "Devpost", "fetch": lambda: ([item_a], None)},
+                {"name": "Devfolio", "fetch": lambda: ([], None)},
+                {"name": "Luma", "fetch": lambda: ([item_b], None)},
+            ],
+        )
+        items, health = fetcher.fetch_events(dry_run=True)
+        assert len(items) == 1
+
+
 class TestResurfaceLogic:
     """Date-aware resurface behaviour, replacing the old fixed-45-day-from-
     first-seen suppression: a future event stays hidden until it is within
