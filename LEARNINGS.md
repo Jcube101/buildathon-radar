@@ -183,3 +183,21 @@ run regardless of what `_should_show` computes. Nothing about this was
 visible from reading `_should_show` in isolation; it only surfaced by
 tracing through what happens when a second source's item for a brand-new
 event lands on top of the first source's item within the same call.
+
+## Verifying an exclusion against "the events from last time" does not work
+
+Asked to confirm two specific "students only" events were now excluded, the
+obvious move was to re-run `--dry-run` and diff against the prior run. It
+did not work: live source feeds change day to day, and the two events in
+question were simply gone from today's pull, present or absent regardless
+of the rubric change, so a before/after diff on live data proved nothing
+either way. The reliable check was a targeted live call: build two synthetic
+events matching the exact pattern described (a non-college host, wording
+like "students only" and "must be a currently enrolled student"), plus one
+inclusive-mention control ("open to students, professionals, and
+researchers"), and call `run_agent` directly. That produced a real,
+repeatable answer (both exclusions fired, the control was kept and scored
+normally) that a live re-fetch could not have guaranteed. The lesson: when
+verifying a filter change against real-world examples that were only ever
+observed once, do not assume the same examples will still be live to
+re-check against; reconstruct them as inputs instead.

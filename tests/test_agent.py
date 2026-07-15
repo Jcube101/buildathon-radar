@@ -84,6 +84,23 @@ class TestRubricContent:
         tag_index = agent.SYSTEM_PROMPT.find("Cerebral Valley Featured")
         assert host_prestige_start < tag_index < next_component_start
 
+    def test_student_only_eligibility_exclusion_present(self):
+        assert "students only" in agent.SYSTEM_PROMPT.lower()
+        assert "must be a currently enrolled student" in agent.SYSTEM_PROMPT.lower()
+        assert "for university students only" in agent.SYSTEM_PROMPT.lower()
+
+    def test_student_only_exclusion_distinguishes_host_from_eligibility(self):
+        # Exclusion 1 (host-based) and the new eligibility-based rule must
+        # both be present as distinct rules, not merged into one.
+        assert "who is running the event" in agent.SYSTEM_PROMPT
+        assert "who is allowed to attend" in agent.SYSTEM_PROMPT
+
+    def test_inclusive_student_mentions_not_excluded_by_prompt_text(self):
+        # The prompt must explicitly instruct the model not to exclude an
+        # event that merely mentions students among a broader audience.
+        assert "open to students, professionals, and researchers" in agent.SYSTEM_PROMPT
+        assert "not any mention of students" in agent.SYSTEM_PROMPT
+
 
 class TestEmptyInput:
     def test_empty_items_never_calls_client(self):
