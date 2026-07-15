@@ -184,6 +184,18 @@ visible from reading `_should_show` in isolation; it only surfaced by
 tracing through what happens when a second source's item for a brand-new
 event lands on top of the first source's item within the same call.
 
+## Passwordless sudo rules match the exact command, not the intent
+
+Setting up the tracker's Cloudflare Tunnel entry needed `sudo systemctl
+status cloudflared` to confirm the restart worked. The bare command ran
+without a password, as expected from the existing NOPASSWD rule, but adding
+`--no-pager` to keep the output clean made sudo prompt for a password. The
+sudoers rule is an exact-command match, not a match on the underlying binary
+or intent, so any extra flag falls outside it and sudo falls back to asking.
+The practical fix is to just use the plain command as written in the
+sudoers file rather than adding convenience flags, and to expect this on
+any other passwordless rule on this Pi.
+
 ## Verifying an exclusion against "the events from last time" does not work
 
 Asked to confirm two specific "students only" events were now excluded, the

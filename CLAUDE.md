@@ -37,7 +37,7 @@ buildathon_radar/
     digest.py          markdown/HTML assembly from validated picks (code-owned, not Claude)
     deliver.py         markdown to HTML, local archive, Gmail SMTP send
     tracker_store.py   SQLite tracker store (v2): schema, upsert, state transitions, signed tokens
-    tracker_service.py v2 FastAPI app: GET /, /track, /applied
+    tracker_service.py v2 FastAPI app: GET /, /track, /applied, /list
 main.py          orchestrator, --dry-run flag, top-level fatal handler
 tests/           pytest, Claude client always mocked, fixtures under tests/fixtures/
 scheduler/systemd/   digest service + timer, tracker service unit, install README
@@ -58,7 +58,9 @@ emailed pick into `tracker.db` (v2, ROADMAP.md 2.2/2.3) as `seen`; a separate
 always-on FastAPI service (`tracker_service.py`, exposed at
 `https://radar.job-joseph.com`) handles the email's Track/Applied button
 clicks, and the digest renders a tracked-reminder strip and a participation
-log from that store.
+log from that store. The same service also serves `/list`, a read-only page
+showing everything currently tracked or applied, for checking in without
+waiting for Sunday.
 
 ## Commands
 
@@ -71,6 +73,7 @@ journalctl --user -u buildathon-radar.service   # read digest run logs
 systemctl --user status buildathon-tracker.service    # tracker service status
 journalctl --user -u buildathon-tracker.service       # tracker service logs
 curl -s https://radar.job-joseph.com/                 # tracker health check
+curl -s https://radar.job-joseph.com/list             # everything currently tracked or applied
 ```
 
 ## Known limitations

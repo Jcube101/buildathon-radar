@@ -127,22 +127,31 @@ richer structured fields. Left as a documented v2 option.
 
 ```python
 {
-    "source":    "Devpost" | "Devfolio" | "Luma" | "Cerebral Valley",
-    "title":     str,
-    "url":       str,   # dedup key, guard key
-    "summary":   str,   # trimmed to 500 chars
-    "published": str,   # "YYYY-MM-DD" or "Unknown"
-    "location":  str,
-    "mode":      "in-person" | "online",
-    "host":      str,
-    "dates":     str,
-    "prize":     str,
-    "themes":    list[str],
+    "source":      "Devpost" | "Devfolio" | "Luma" | "Cerebral Valley",
+    "title":       str,
+    "url":         str,   # dedup key, guard key
+    "summary":     str,   # trimmed to 500 chars
+    "published":   str,   # "YYYY-MM-DD" or "Unknown"
+    "location":    str,
+    "mode":        "in-person" | "online",
+    "host":        str,
+    "dates":       str,
+    "prize":       str,
+    "themes":      list[str],
+    "event_start": str | None,   # "YYYY-MM-DD" or None
+    "event_end":   str | None,   # "YYYY-MM-DD" or None
 }
 ```
 
-No value is ever `None`. Missing data falls back to `"Unknown"` (title, host,
+No value is ever `None` except `event_start`/`event_end`, which are `None`
+when the source gave no parseable date (used by the cache's date-aware
+resurface logic to tell "no date" apart from the `"Unknown"` display
+placeholder). Missing data otherwise falls back to `"Unknown"` (title, host,
 published, location), `""` (dates, prize), or `[]` (themes).
+
+`fetch_events` (not the per-source normaliser) additionally attaches a 14th
+key, `event_id`, the same composite id used to key `cache.json`, so a
+guard-matched pick's item ties back to the same tracker row.
 
 ## The Claude filter
 
@@ -153,11 +162,30 @@ token budget on internal reasoning and return zero text output.
 
 Claude receives every fetched event as a plain-text stanza (source, title,
 url, host, location, mode, dates, prize, themes, summary) and a system prompt
-with four blocks: persona, a four-component scoring rubric (theme fit 0 to 35,
-geography 0 to 30, host prestige 0 to 25, scale and signal 0 to 10), tiering
-rules (must_see >= 70, worth_a_look 50 to 69, radar 35 to 49, excluded below
-35, capped at 12 picks), and a critical-constraints block forbidding invention
-and requiring every URL to be copied character for character from the input.
+with five blocks: persona, a hard-exclusions block, a four-component scoring
+rubric (theme fit 0 to 35, geography 0 to 30, host prestige 0 to 25, scale and
+signal 0 to 10), tiering rules (must_see >= 70, worth_a_look 50 to 69, radar
+35 to 49, excluded below 35, capped at 12 picks), and a critical-constraints
+block forbidding invention and requiring every URL to be copied character for
+character from the input.
+
+The exclusions block runs before any scoring and is absolute: a high theme,
+host, or prize score never overrides an exclusion. Four rules, in order:
+
+1. Student and college-run events, judged by who is running the event (the
+   host, organizer, or primary sponsor is a university, college, student
+   branch, or student chapter).
+2. Platforms impractical to access from India (for example events gated
+   behind an Alibaba Cloud or Qwen Cloud account).
+3. Chip-level, embedded, or hardware AI optimization challenges, as distinct
+   from on-device AI as a software product feature, which stays in scope.
+4. Eligibility genuinely restricted to students, judged by who is allowed to
+   attend rather than who runs the event, so it also catches a
+   non-college host that gates entry to students (for example "students
+   only" or "must be a currently enrolled student"). An event that merely
+   mentions students as part of a broader eligible audience (for example
+   "open to students, professionals, and researchers") is explicitly
+   exempted and scored normally; only genuine restriction triggers this rule.
 
 A deliberate rubric property: theme (35) + host (25) + signal (10) sums to 70
 with zero geography points, so a prestigious global online event (a major AI
@@ -221,13 +249,15 @@ deferred; see `docs/V2-SOURCING-PLAN.md` section 3.
 by score within each), a quiet-week note when there are zero picks, and an
 always-present source health footer, e.g. `Devpost: 43 new events` or
 `Devfolio: FAILED (Connection timeout)`. A zero-result healthy source is
-flagged with a warning marker rather than silently omitted. `deliver.py`
-renders the markdown to a styled HTML email (blue accent, sans-serif), saves a
-plain-text archive copy to `archive/radar_YYYY-MM-DD.md`, and sends via Gmail
-SMTP SSL using the app password in `.env`. An email is sent every Sunday no
-matter what, including a quiet week or a degraded run; even a fatal crash
-triggers a short failure-notice email before the process exits non-zero, so
-silence in the inbox always means the pipeline itself is broken.
+flagged with a warning marker rather than silently omitted. `digest.py` also
+renders a teal-accented, table-based HTML email (see the v2 tracker section
+below for the Track/Applied buttons and participation log it also carries).
+`deliver.py` saves a plain-text archive copy to `archive/radar_YYYY-MM-DD.md`
+and sends the HTML alongside it via Gmail SMTP SSL using the app password in
+`.env`. An email is sent every Sunday no matter what, including a quiet week
+or a degraded run; even a fatal crash triggers a short failure-notice email
+before the process exits non-zero, so silence in the inbox always means the
+pipeline itself is broken.
 
 ## Failure resilience
 

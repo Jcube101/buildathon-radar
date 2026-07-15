@@ -58,6 +58,12 @@ see `SPEC.md`.
       action signature-verified before touching the store; unknown event_id,
       invalid token, and repeat/out-of-order clicks all handled gracefully
       (404, 403, idempotent 200 respectively), never an error or a downgrade.
+- [x] `GET /list`: a read-only view of every row in the tracker store,
+      grouped by state (Tracked, Applied, Seen, Over), so the owner can see
+      current tracker state without waiting for Sunday's digest. No signed
+      token (it never writes), same unauthenticated posture as the health
+      page; reuses the same WAL-mode `connect()` path every other route
+      uses. Verified live over the real tunnel.
 - [x] `fetcher.py`: every returned item now carries `event_id`, matching the
       cache key, so a Claude pick's guard-matched item ties back to the same
       tracker row.
@@ -198,13 +204,16 @@ arrive by system, not by luck.
 
 ## 2. v2 tracker vision (product direction, documentation of intent, not a build instruction)
 
-This section records where the project should grow after v1. Nothing here should be built this session or any session unless explicitly scoped. It is written richly enough that a future session can turn any one piece of it into a proper build plan without having to re-derive the intent from scratch.
+This section records where the project should grow after v1, written before any of it was built. 2.2 and 2.3 have since shipped largely as described here (see the Status section above); 2.4, 2.5, and 2.6 remain deferred, and nothing there should be built without being explicitly scoped.
 
 ### 2.1 The evolution: one-way notifier to two-way tracker
 
 v1 is a one-way system: it watches sources and reports events. It has no memory of what the owner actually did about any of them. v2's central idea is to close that loop: the owner acts on an event (tracks it, applies to it), and buildathon-radar holds state about that action so future digests, a participation log, and eventually a small dashboard can all reflect what is actually happening, not just what exists to be found. The cache restructure already done (composite `event_id`, `urls` as an array, `event_start`/`event_end` on every record) is deliberately shaped so this later state can hang off the same per-event record without another migration.
 
 ### 2.2 Per-event actions: Track and Applied
+
+**Shipped, see Status above.** The design intent below is kept as written
+for context; the actual routes and store shape are documented in `SPEC.md`.
 
 Two buttons on every event card in the email:
 
@@ -221,6 +230,9 @@ This means buildathon-radar has to grow a small web service to receive those cli
 - The tracker store itself could start as simply an extension of `cache.json` (each record already has an `event_id` to key off of) or a small separate JSON/SQLite store keyed the same way. Given the lifecycle fields in 2.4, a slightly richer store than a flat JSON file may be worth it once this is actually scoped, but that decision belongs to whichever session builds this.
 
 ### 2.3 The participation log
+
+**Shipped, see Status above.** The design intent below is kept as written
+for context; the actual rendering is documented in `SPEC.md`.
 
 A new section at the bottom of the weekly digest, a small table listing every event marked Applied, not yet resolved to Over. Columns: event title (linked), registration or start date, submission or end date. This is purely a rendered view over the tracker store's state, the same "code renders from data, Claude touches none of it" principle that governs the rest of the digest. As events move to Over (2.4), they drop out of this table (or move to a separate small history section, a detail for the future build to decide).
 
