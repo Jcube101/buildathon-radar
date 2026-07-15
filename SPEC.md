@@ -256,9 +256,17 @@ gitignored, at the repo root):
 - `buildathon_radar/tracker_service.py`, a FastAPI app on `127.0.0.1:8015`
   (systemd user service `buildathon-tracker.service`, `Type=simple`), exposed
   publicly at `https://radar.job-joseph.com` via the existing `pi-home`
-  Cloudflare Tunnel. It serves `GET /`, `GET /track?event_id=...&t=...`, and
-  `GET /applied?event_id=...&t=...`, the endpoints the email's Track/Applied
-  buttons link to.
+  Cloudflare Tunnel. It serves `GET /` (health), `GET /track?event_id=...&t=...`
+  and `GET /applied?event_id=...&t=...` (the endpoints the email's
+  Track/Applied buttons link to), and `GET /list` (a read-only view of every
+  row in the tracker store, grouped by state, so the owner can see current
+  tracker state without waiting for Sunday's digest). `/list` takes no
+  parameters and requires no signed token, unauthenticated like `/`, since it
+  only displays low-sensitivity hackathon names and never writes; unlike
+  `/track` and `/applied`, it performs no state change, so the HMAC pattern
+  does not apply. It reuses `tracker_store.connect()`, the same WAL-mode
+  connection path every other route uses, and renders as a normal web page
+  (not an email), so it is not bound by the strict Gmail-safe HTML rules.
 
 `events` table (`buildathon_radar/tracker_store.py`): keyed on `event_id`, the
 same composite id `fetcher.derive_event_id` produces for `cache.json`, with

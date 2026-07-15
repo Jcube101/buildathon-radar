@@ -182,6 +182,13 @@ def get_applied_open(conn, today_str):
     ).fetchall()
 
 
+def get_all_events(conn):
+    """Every row in the store, every state, most recently updated first.
+    Read-only helper for the tracker service's /list view; never used by
+    any state-changing code path."""
+    return conn.execute("SELECT * FROM events ORDER BY updated_at DESC").fetchall()
+
+
 def sign_action(action, event_id, secret=None):
     """HMAC-SHA256 of "action:event_id" under TRACKER_SECRET, hex, truncated
     to 20 chars. Binding the action into the MAC means a Track link cannot be

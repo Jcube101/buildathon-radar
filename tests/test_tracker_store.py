@@ -203,6 +203,32 @@ class TestQueries:
         assert [r["event_id"] for r in rows] == ["sooner", "later"]
 
 
+class TestGetAllEvents:
+    def test_empty_store_returns_empty_list(self, tmp_path):
+        conn = tracker_store.connect(db_path(tmp_path))
+        assert tracker_store.get_all_events(conn) == []
+
+    def test_returns_every_state(self, tmp_path):
+        conn = tracker_store.connect(db_path(tmp_path))
+        tracker_store.upsert_seen(conn, [
+            make_item("e1"), make_item("e2"), make_item("e3"),
+        ])
+        tracker_store.apply_action(conn, "track", "e2")
+        tracker_store.apply_action(conn, "applied", "e3")
+        rows = tracker_store.get_all_events(conn)
+        by_id = {r["event_id"]: r["state"] for r in rows}
+        assert by_id == {"e1": "seen", "e2": "tracked", "e3": "applied"}
+
+    def test_read_only_no_state_change(self, tmp_path):
+        conn = tracker_store.connect(db_path(tmp_path))
+        tracker_store.upsert_seen(conn, [make_item("e1")])
+        tracker_store.apply_action(conn, "track", "e1")
+        before = {r["event_id"]: dict(r) for r in tracker_store.get_all_events(conn)}
+        tracker_store.get_all_events(conn)  # calling it again must not mutate anything
+        after = {r["event_id"]: dict(r) for r in tracker_store.get_all_events(conn)}
+        assert before == after
+
+
 class TestSignVerify:
     def test_round_trip(self):
         token = tracker_store.sign_action("track", "e1", secret="s3cr3t")
