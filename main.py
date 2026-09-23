@@ -7,12 +7,16 @@ from buildathon_radar.deliver import get_date_range, send_digest, send_failure_e
 from buildathon_radar.digest import build_digest, build_html_digest
 from buildathon_radar.fetcher import fetch_events
 from buildathon_radar.guard import validate_picks
+from buildathon_radar.triage import triage_items
 
 dry_run = "--dry-run" in sys.argv
 
 try:
     items, source_health = fetch_events(dry_run=dry_run)
-    agent_result = run_agent(items)
+    # Optional Jev pre-filter (ENABLE_JEV_TRIAGE, off by default). Fails open,
+    # so triaged_items is `items` unchanged whenever triage cannot run.
+    triaged_items, _ = triage_items(items)
+    agent_result = run_agent(triaged_items)
     valid_picks, dropped_picks = validate_picks(agent_result["picks"], items)
     digest = build_digest(
         valid_picks, dropped_picks, source_health, agent_result["week_note"]

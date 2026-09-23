@@ -23,8 +23,10 @@ Asia/Kolkata. No sudo is used anywhere in this project; scheduling is
 ## Stack
 
 Python 3.13. Dependencies: `anthropic`, `requests`, `python-dotenv`,
-`markdown`, `pytest` (see `requirements.txt`). Model: `claude-sonnet-5`, called
-with extended thinking explicitly disabled (see `LEARNINGS.md` for why).
+`markdown`, `pytest`, `typesafe-sdk` (see `requirements.txt`). Model:
+`claude-sonnet-5`, called with extended thinking explicitly disabled (see
+`LEARNINGS.md` for why). Triage model: `jev-1.13.0`, pinned rather than
+`jev-latest` so triage behaviour cannot shift without a commit.
 
 ## Structure
 
@@ -32,6 +34,8 @@ with extended thinking explicitly disabled (see `LEARNINGS.md` for why).
 buildathon_radar/
     fetcher.py         Devpost/Devfolio/Luma/Cerebral Valley fetch, normalise, cache.json dedup
                        (ENABLE_CV_SOURCE near the top gates Cerebral Valley off by default)
+    triage.py          Jev (TypeSafe AI) pre-filter that runs ahead of the Claude call
+                       (ENABLE_JEV_TRIAGE in .env; fails open, logs every verdict)
     agent.py           claude-sonnet-5 call, scoring rubric, strict JSON output
     guard.py           programmatic anti-hallucination URL check
     digest.py          markdown/HTML assembly from validated picks (code-owned, not Claude)
@@ -39,7 +43,8 @@ buildathon_radar/
     tracker_store.py   SQLite tracker store (v2): schema, upsert, state transitions, signed tokens
     tracker_service.py v2 FastAPI app: GET /, /track, /applied, /list
 main.py          orchestrator, --dry-run flag, top-level fatal handler
-tests/           pytest, Claude client always mocked, fixtures under tests/fixtures/
+tests/           pytest, Claude and Jev clients always mocked, fixtures under tests/fixtures/
+scripts/         manual review tools, not wired into the weekly run
 scheduler/systemd/   digest service + timer, tracker service unit, install README
 ```
 
@@ -48,8 +53,12 @@ scheduler/systemd/   digest service + timer, tracker service unit, install READM
 All sources are free public JSON APIs, no scraping, no keys beyond what is
 already in `.env`. Fetched items are deduplicated against `cache.json` (per-event
 records, date-aware resurface logic) and normalised into a dict that includes
-`event_id`. Claude scores and tiers the survivors and returns JSON picks (url,
-tier, score, why), not prose. `guard.py` checks every returned URL against the
+`event_id`. A Jev triage pass (`triage.py`) then drops listings it confidently
+classifies as student or college run, which is the one class `agent.py`'s first
+hard exclusion rejects outright anyway. Triage fails open on every error path,
+so a Jev outage can only ever send more to Claude, never less. Claude scores
+and tiers the survivors and returns JSON picks (url, tier, score, why), not
+prose. `guard.py` checks every returned URL against the
 fetched set and drops anything that does not match. `digest.py` then renders
 the email from the matched source items, not from Claude's text, so no fact in
 the email can be a hallucination. `deliver.py` sends it over Gmail SMTP and
@@ -67,6 +76,7 @@ waiting for Sunday.
 ```
 venv/bin/pytest                     # full mocked test suite
 venv/bin/python main.py --dry-run   # live fetch + live Claude call, no send, no cache write
+venv/bin/python scripts/triage_preview.py   # live Jev triage over the current crop, no Claude call
 venv/bin/python main.py             # the real weekly run
 systemctl --user list-timers        # confirm the Sunday 17:00 IST schedule
 journalctl --user -u buildathon-radar.service   # read digest run logs
@@ -83,6 +93,14 @@ curl -s https://radar.job-joseph.com/list             # everything currently tra
   Luma went live alone so its real weekly behaviour could be observed
   before adding a second new source at once; flip `ENABLE_CV_SOURCE` to
   `True` about a week after 2026-07-15 to activate it (see `ROADMAP.md`).
+- Jev triage gates on one thing only: a confident `student_college`
+  classification. `fit_score` is computed and logged but deliberately does not
+  gate. A 120-item preview put 60 listings within 0.35 of a 2.0 threshold,
+  with 42 of them in a single 1.75 bucket, so a cut there would be close to
+  arbitrary. The `MIN_DROP_CONFIDENCE` floor of 0.7 is a judgement call, not a
+  measured value; it is marked TODO in `triage.py`. Every verdict lands in the
+  `triage_log` table in `tracker.db`, which is the data to revisit both
+  numbers against.
 - Luma's own IP-geo-scoped `cat-ai` category feed is documented but not
   used; only the deterministic Bengaluru place feed is wired in.
 - Luma and Cerebral Valley are both undocumented public JSON APIs, the same
