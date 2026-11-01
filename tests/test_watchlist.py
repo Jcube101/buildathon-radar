@@ -63,11 +63,22 @@ class TestCompanyList:
 
 
 class TestQueryAndLinks:
-    def test_query_quotes_every_alias_and_adds_contest_terms(self):
-        q = fetcher._watchlist_query([ELEVENLABS, RUNWAY])
-        for alias in ELEVENLABS["aliases"] + RUNWAY["aliases"]:
-            assert f'"{alias}"' in q
+    def test_query_uses_primary_alias_only_and_adds_contest_terms(self):
+        q = fetcher._watchlist_query([ELEVENLABS])
+        assert q.startswith('("ElevenLabs")')
+        assert '"Eleven Labs"' not in q
         assert "hackathon" in q and "contest" in q
+
+    def test_one_company_per_query_by_default(self):
+        assert fetcher.WATCHLIST_BATCH_SIZE == 1
+
+    def test_headline_company_beats_blurb_company(self):
+        google = next(c for c in AI_COMPANIES if c["name"] == "Google")
+        meta = next(c for c in AI_COMPANIES if c["name"] == "Meta")
+        title = "Rise Networks, INEC, Meta, others launch #AI4Elections hackathon"
+        text = f"{title} Supported by Google and others."
+        assert fetcher._match_company(text, AI_COMPANIES, title=title) is meta
+        assert fetcher._match_company(text, [google, meta]) is google
 
     def test_batches_cover_all_companies(self):
         batches = fetcher._watchlist_batches(AI_COMPANIES, fetcher.WATCHLIST_BATCH_SIZE)
@@ -96,7 +107,7 @@ class TestFetchWatchlist:
         items, error = fetcher.fetch_watchlist(companies=[ELEVENLABS, RUNWAY])
 
         assert error is None
-        assert len(calls) == 1
+        assert len(calls) == 2  # one query per company
         assert calls[0]["params"]["format"] == "rss"
 
         titles = [i["title"] for i in items]
@@ -179,6 +190,8 @@ class TestContestSignal:
         ("DeepSeek Unveils Super-Agent To Gain Edge Over Anthropic", "A challenge to US labs."),
         ("US Is Inquiring About Nvidia's Purchase Of Hugging Face, Sources Say", "Shares closed at $12.93 amid competition concerns."),
         ("Scale AI Faces Worker Privacy Backlash", "A new challenge for the company."),
+        ("OpenAI doubles usage limits on Pro plans as competition with Anthropic heats up", ""),
+        ("Meta Platforms stock outlook: AI hackathon keeps developers in focus", ""),
     ])
     def test_live_false_positives_rejected(self, title, blurb):
         assert not fetcher._is_contest_news(title, blurb)

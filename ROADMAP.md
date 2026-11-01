@@ -154,8 +154,8 @@ contest low anyway.
 
 - [x] `ai_companies.py`: 100 large AI companies with search aliases and
       researched competition records (`docs/AI-COMPANY-WATCHLIST.md`).
-- [x] `fetch_watchlist()`: weekly Bing News RSS search per batch of
-      companies plus contest keywords, filtered and capped. **Live in
+- [x] `fetch_watchlist()`: weekly Bing News RSS search per company
+      plus 11 contest topic searches, filtered and capped. **Live in
       `SOURCES` (`ENABLE_WATCHLIST_SOURCE = True`), but not yet run
       against the live endpoint**: run `scripts/watchlist_preview.py` and a
       `--dry-run` on jobpi first.

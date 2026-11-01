@@ -126,9 +126,14 @@ Many AI company competitions never reach a listing platform; see
 `docs/AI-COMPANY-WATCHLIST.md` for the research.
 
 `buildathon_radar/ai_companies.py` holds 100 companies, each with search
-aliases chosen to be unambiguous ("Runway AI", not "Runway"). Companies are
-queried in batches of 6: `("alias1" OR "alias2" ...) (hackathon OR contest
-OR competition OR challenge OR "prize pool" ...)`. Bing's news RSS is
+aliases chosen to be unambiguous ("Runway AI", not "Runway"). Each company
+gets its own query on its primary alias: `("ElevenLabs") (hackathon OR
+contest OR competition OR challenge OR "prize pool" ...)`; the other aliases
+are only used to match results. The first live run batched 6 companies with
+all their aliases per query, and Bing answered those long queries with
+unrelated top stories, so batching was dropped. About 110 queries a week at
+1 second apart, roughly two minutes. Headline company matches win over
+blurb matches. Bing's news RSS is
 undocumented but public, no key. Each item's link is a bing.com
 click-tracking redirect; the real article URL is taken from its `url`
 parameter and tracking parameters (`utm_*`, `fbclid`, ...) are stripped.

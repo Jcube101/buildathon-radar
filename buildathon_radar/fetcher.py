@@ -44,7 +44,8 @@ CV_WINDOW_DAYS = 60  # how far ahead the Cerebral Valley upcoming window looks
 CV_PAGE_LIMIT = 100  # verified server-side cap on the pull endpoint
 CV_MAX_PAGES = 6  # runaway guard while paging backward from the tail
 WATCHLIST_NEWS_URL = "https://www.bing.com/news/search"
-WATCHLIST_BATCH_SIZE = 6  # companies per news query, keeps each query short
+WATCHLIST_BATCH_SIZE = 1  # companies per news query. Live run 2026-11-02: Bing ignores long OR queries
+                          # (6-company batches returned unrelated top stories), so one company each.
 WATCHLIST_LOOKBACK_DAYS = 8  # one week plus a day of slack for the Sunday run
 WATCHLIST_MAX_PER_COMPANY = 2  # several articles about one contest add nothing
 WATCHLIST_MAX_ITEMS = 30  # keeps the Claude batch from ballooning on a busy news week
@@ -884,7 +885,9 @@ WATCHLIST_TOPIC_QUERIES = [
 _NOT_A_CONTEST_RE = re.compile(
     r"antitrust|anti-competitive|competition (?:commission|law|watchdog|regulator|authority|concerns)|"
     r"competition (?:from|between)|fac(?:e|es|ing) (?:stiff |tough |growing |intense )?competition|"
-    r"\brivals?\b|market share|lawsuit|\bsues?\b|legal challenge|"
+    r"\brivals?\b|rivalry|market share|lawsuit|\bsues?\b|legal challenge|"
+    r"as competition|competition (?:heats|intensifies|grows|with (?:rival|google|openai|anthropic|microsoft|meta|nvidia))|heats up|"
+    r"\bstocks?\b|\bshares\b|earnings|investors?\b|"
     r"winners? (?:announced|revealed|named|unveiled|list)|announc\w* (?:the )?winners|\bwon\b|\bwins\b",
     re.IGNORECASE,
 )
@@ -906,22 +909,24 @@ def _watchlist_batches(companies, size):
 
 
 def _watchlist_query(batch):
-    names = []
-    for company in batch:
-        for alias in company["aliases"]:
-            names.append(f'"{alias}"')
+    # Primary alias only: keeps the query short enough for Bing to honour.
+    # The other aliases are still used to match the results.
+    names = [f'"{company["aliases"][0]}"' for company in batch]
     return f"({' OR '.join(names)}) ({WATCHLIST_CONTEST_TERMS})"
 
 
-def _match_company(text, batch):
-    """First company in the batch whose any alias appears in text, else None.
-    Bing matches on full article text, so an article can hit the query
-    without naming any company in its headline or blurb; those are dropped
-    rather than guessed at."""
-    for company in batch:
-        for alias in company["aliases"]:
-            if _alias_pattern(alias).search(text):
-                return company
+def _match_company(text, batch, title=None):
+    """The company an article is about, or None. Companies named in the
+    headline win over companies only named in the blurb (a live run credited
+    a Meta hackathon to Google because "Google" came first in the list and
+    appeared in the blurb). Bing matches on full article text, so an article
+    can hit the query without naming any company in its headline or blurb;
+    those are dropped rather than guessed at."""
+    for haystack in ([title] if title else []) + [text]:
+        for company in batch:
+            for alias in company["aliases"]:
+                if _alias_pattern(alias).search(haystack):
+                    return company
     return None
 
 
@@ -1081,7 +1086,7 @@ def fetch_watchlist(companies=None, stats=None):
             if not _is_contest_news(title, blurb):
                 reject("not a contest")
                 continue
-            company = _match_company(f"{title} {blurb}", candidates)
+            company = _match_company(f"{title} {blurb}", candidates, title=title)
             if company is None:
                 reject("no watchlist company")
                 continue
