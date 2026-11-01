@@ -67,3 +67,34 @@ class TestValidatePicks:
         valid, dropped = validate_picks(picks, items)
         assert valid == []
         assert len(dropped) == 1
+
+
+class TestDuplicatesAndFloor:
+    items = [
+        {"url": "https://codegeist2026.devpost.com/", "title": "Codegeist"},
+        {"url": "https://b.com/2", "title": "B"},
+    ]
+
+    def test_duplicate_url_keeps_highest_score(self):
+        picks = [
+            {"url": "https://codegeist2026.devpost.com/", "title": "Codegeist", "tier": "worth_a_look", "score": 57, "why": "real"},
+            {"url": "https://b.com/2", "title": "B", "tier": "radar", "score": 40, "why": "ok"},
+            {"url": "https://codegeist2026.devpost.com/", "title": "Codegeist", "tier": "radar", "score": 45, "why": "again"},
+        ]
+        valid, dropped = validate_picks(picks, self.items)
+        assert [p["score"] for p in valid] == [57, 40]
+        assert dropped == []
+
+    def test_placeholder_score_zero_is_skipped_not_dropped(self):
+        picks = [
+            {"url": "https://codegeist2026.devpost.com/", "title": "Codegeist", "tier": "worth_a_look", "score": 57, "why": "real"},
+            {"url": "https://codegeist2026.devpost.com/", "title": "Codegeist", "tier": "radar", "score": 0, "why": "placeholder"},
+        ]
+        valid, dropped = validate_picks(picks, self.items)
+        assert len(valid) == 1 and valid[0]["why"] == "real"
+        assert dropped == []
+
+    def test_below_floor_pick_skipped(self):
+        picks = [{"url": "https://b.com/2", "title": "B", "tier": "radar", "score": 34, "why": "low"}]
+        valid, dropped = validate_picks(picks, self.items)
+        assert valid == [] and dropped == []
