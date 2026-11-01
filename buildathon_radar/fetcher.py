@@ -2,9 +2,14 @@ import json
 import os
 import re
 import time
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import requests
+
+from buildathon_radar.ai_companies import AI_COMPANIES
 
 CACHE_FILE = "cache.json"
 CACHE_TTL_DAYS = 45  # fallback suppression window for events with no parseable date
@@ -19,6 +24,12 @@ SOURCE_REQUEST_DELAY_S = 1  # politeness delay between successive paged requests
 # activate Cerebral Valley. See ROADMAP.md for the full reasoning.
 ENABLE_CV_SOURCE = False
 
+# The AI company watchlist (fetch_watchlist below): a weekly news search for
+# competitions run by the 100 companies in ai_companies.py. Added after the
+# radar missed ElevenLabs' $100K "The Search" ad contest, which was only ever
+# announced on ElevenLabs' own site and in press, never on a listing platform.
+ENABLE_WATCHLIST_SOURCE = True
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) buildathon-radar/1.0",
     "Accept": "application/json",
@@ -32,6 +43,11 @@ CV_API_URL = "https://api.cerebralvalley.ai/v1/public/event/pull"
 CV_WINDOW_DAYS = 60  # how far ahead the Cerebral Valley upcoming window looks
 CV_PAGE_LIMIT = 100  # verified server-side cap on the pull endpoint
 CV_MAX_PAGES = 6  # runaway guard while paging backward from the tail
+WATCHLIST_NEWS_URL = "https://www.bing.com/news/search"
+WATCHLIST_BATCH_SIZE = 6  # companies per news query, keeps each query short
+WATCHLIST_LOOKBACK_DAYS = 8  # one week plus a day of slack for the Sunday run
+WATCHLIST_MAX_PER_COMPANY = 2  # several articles about one contest add nothing
+WATCHLIST_MAX_ITEMS = 30  # keeps the Claude batch from ballooning on a busy news week
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -816,6 +832,237 @@ def fetch_cerebralvalley():
         return [], str(e)
 
 
+# --- AI company watchlist (news search) ---
+#
+# Not a listing platform: a news search. Bing News serves search results as
+# RSS (format=rss), the same undocumented-but-public standing as the other
+# sources, no key needed. Unlike Google News RSS, each item's link carries
+# the real article URL in a "url" query parameter, so the digest links to
+# the actual page and Claude only has to copy a normal-length URL back.
+
+WATCHLIST_CONTEST_TERMS = (
+    'hackathon OR buildathon OR contest OR competition OR challenge OR '
+    '"prize pool" OR "cash prize" OR "in prizes"'
+)
+
+# A headline or blurb must carry one of these to count as a contest at all.
+_CONTEST_SIGNAL_RE = re.compile(
+    r"hackathon|buildathon|contest|competition|challenge\b|prize|"
+    r"film festival|submissions? (?:open|close)|"
+    r"[$₹€£]\s?\d|\brs\.?\s?\d|\binr\s?\d",
+    re.IGNORECASE,
+)
+
+# "Competition" and "challenge" are also business-news words. These patterns
+# catch the common market-competition and results-announcement senses, which
+# are never an enterable contest.
+_NOT_A_CONTEST_RE = re.compile(
+    r"antitrust|anti-competitive|competition (?:commission|law|watchdog|regulator|authority|concerns)|"
+    r"competition (?:from|between)|fac(?:e|es|ing) (?:stiff |tough |growing |intense )?competition|"
+    r"\brivals?\b|market share|lawsuit|\bsues?\b|legal challenge|"
+    r"winners? (?:announced|revealed|named|unveiled|list)|announc\w* (?:the )?winners|\bwon\b|\bwins\b",
+    re.IGNORECASE,
+)
+
+_MONEY_RE = re.compile(
+    r"(?:[$₹€£]|\brs\.?\s?|\binr\s?)\s?\d[\d,.]*\s?(?:k|m|million|lakh|crore)?\b",
+    re.IGNORECASE,
+)
+
+_TRACKING_PARAMS_RE = re.compile(r"^(?:utm_|fbclid$|gclid$|ocid$|cvid$)", re.IGNORECASE)
+
+
+def _alias_pattern(alias):
+    return re.compile(r"(?<![A-Za-z0-9])" + re.escape(alias) + r"(?![A-Za-z0-9])", re.IGNORECASE)
+
+
+def _watchlist_batches(companies, size):
+    return [companies[i : i + size] for i in range(0, len(companies), size)]
+
+
+def _watchlist_query(batch):
+    names = []
+    for company in batch:
+        for alias in company["aliases"]:
+            names.append(f'"{alias}"')
+    return f"({' OR '.join(names)}) ({WATCHLIST_CONTEST_TERMS})"
+
+
+def _match_company(text, batch):
+    """First company in the batch whose any alias appears in text, else None.
+    Bing matches on full article text, so an article can hit the query
+    without naming any company in its headline or blurb; those are dropped
+    rather than guessed at."""
+    for company in batch:
+        for alias in company["aliases"]:
+            if _alias_pattern(alias).search(text):
+                return company
+    return None
+
+
+def _unwrap_news_link(link):
+    """Bing News links point at a bing.com click-tracking redirect with the
+    real article URL in its "url" parameter. Returns that real URL, with
+    utm_* and similar tracking parameters stripped, or the link unchanged
+    when there is nothing to unwrap."""
+    link = (link or "").strip()
+    try:
+        parsed = urlparse(link)
+        if parsed.netloc.endswith("bing.com"):
+            target = parse_qs(parsed.query).get("url")
+            if target and target[0]:
+                link = target[0]
+                parsed = urlparse(link)
+        if parsed.query:
+            kept = [
+                (k, v)
+                for k, vals in parse_qs(parsed.query, keep_blank_values=True).items()
+                for v in vals
+                if not _TRACKING_PARAMS_RE.match(k)
+            ]
+            link = urlunparse(parsed._replace(query=urlencode(kept)))
+    except Exception:
+        pass
+    return _canonicalize_url(link)
+
+
+def _parse_news_date(pub_date):
+    if not pub_date:
+        return None
+    try:
+        dt = parsedate_to_datetime(pub_date)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(IST)
+    except Exception:
+        return None
+
+
+
+def normalise_watchlist(entry, company):
+    """entry: {"title", "link", "description", "pub_date"} parsed from one RSS
+    item. company: the matched AI_COMPANIES record."""
+    raw_title = _strip_html(entry.get("title") or "")
+    title = raw_title or "Unknown"
+    description = re.sub(r"\s+", " ", _strip_html(entry.get("description") or "")).strip()
+    url = _unwrap_news_link(entry.get("link"))
+    published_ist = _parse_news_date(entry.get("pub_date"))
+    published = published_ist.strftime("%Y-%m-%d") if published_ist else "Unknown"
+
+    money = _MONEY_RE.search(f"{raw_title} {description}")
+    prize = money.group(0).strip().rstrip(".,") if money else ""
+
+    summary = (
+        f"News announcement mentioning {company['name']} ({company['category']}). "
+        f"{description}"
+    ).strip()[:500]
+
+    return {
+        "source": "Watchlist",
+        "title": title,
+        "url": url,
+        "summary": summary,
+        "published": published,
+        "location": "Unknown",
+        "mode": "unknown",
+        "host": company["name"],
+        "dates": f"Announced {published_ist.strftime('%b %d, %Y')}" if published_ist else "",
+        "prize": prize,
+        "themes": ["AI company watchlist", company["category"]],
+        "event_start": None,
+        "event_end": None,
+    }
+
+
+def _parse_rss_items(xml_text):
+    root = ET.fromstring(xml_text)
+    entries = []
+    for node in root.iter("item"):
+        entries.append({
+            "title": (node.findtext("title") or "").strip(),
+            "link": (node.findtext("link") or "").strip(),
+            "description": (node.findtext("description") or "").strip(),
+            "pub_date": (node.findtext("pubDate") or "").strip(),
+        })
+    return entries
+
+
+def fetch_watchlist(companies=None):
+    """Returns (items, error). error is None if at least one batch succeeded.
+
+    One news query per batch of WATCHLIST_BATCH_SIZE companies. An article
+    is kept only if it was published in the last WATCHLIST_LOOKBACK_DAYS,
+    names a company from its batch, carries a contest signal, and does not
+    look like market-competition or results news. Caps per company and
+    overall keep a busy news week from flooding the Claude call. A single
+    failed batch is skipped, not fatal; only all batches failing counts as
+    a source error, so the health footer still trips if the endpoint dies.
+    """
+    companies = companies if companies is not None else AI_COMPANIES
+    batches = _watchlist_batches(companies, WATCHLIST_BATCH_SIZE)
+    cutoff = datetime.now(IST) - timedelta(days=WATCHLIST_LOOKBACK_DAYS)
+
+    items = []
+    seen_urls = set()
+    seen_titles = set()
+    per_company = {}
+    errors = []
+
+    for i, batch in enumerate(batches):
+        if i > 0:
+            time.sleep(SOURCE_REQUEST_DELAY_S)
+        try:
+            resp = requests.get(
+                WATCHLIST_NEWS_URL,
+                params={
+                    "q": _watchlist_query(batch),
+                    "format": "rss",
+                    "qft": 'interval="8"',  # Bing's "past week" filter
+                    "setlang": "en",
+                },
+                headers={**HEADERS, "Accept": "application/rss+xml, application/xml, text/xml"},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            entries = _parse_rss_items(resp.text)
+        except Exception as e:
+            errors.append(str(e))
+            continue
+
+        for entry in entries:
+            text = f"{_strip_html(entry['title'])} {_strip_html(entry['description'])}"
+            if not _CONTEST_SIGNAL_RE.search(text) or _NOT_A_CONTEST_RE.search(text):
+                continue
+            company = _match_company(text, batch)
+            if company is None:
+                continue
+            published = _parse_news_date(entry["pub_date"])
+            if published is not None and published < cutoff:
+                continue
+            if per_company.get(company["name"], 0) >= WATCHLIST_MAX_PER_COMPANY:
+                continue
+            try:
+                item = normalise_watchlist(entry, company)
+            except Exception:
+                continue
+            norm_title = _normalize_title(item["title"])
+            if not item["url"] or item["url"] in seen_urls or norm_title in seen_titles:
+                continue
+            seen_urls.add(item["url"])
+            seen_titles.add(norm_title)
+            per_company[company["name"]] = per_company.get(company["name"], 0) + 1
+            items.append(item)
+
+    if errors and len(errors) == len(batches):
+        print(f"  WARNING: Watchlist fetch error: {errors[0]}")
+        return [], errors[0]
+    if errors:
+        print(f"  WARNING: Watchlist: {len(errors)} of {len(batches)} news queries failed: {errors[0]}")
+
+    items.sort(key=lambda it: it["published"], reverse=True)
+    return items[:WATCHLIST_MAX_ITEMS], None
+
+
 SOURCES = [
     {"name": "Devpost", "fetch": fetch_devpost},
     {"name": "Devfolio", "fetch": fetch_devfolio},
@@ -823,6 +1070,8 @@ SOURCES = [
 if ENABLE_CV_SOURCE:
     SOURCES.append({"name": "Cerebral Valley", "fetch": fetch_cerebralvalley})
 SOURCES.append({"name": "Luma", "fetch": fetch_luma})
+if ENABLE_WATCHLIST_SOURCE:
+    SOURCES.append({"name": "Watchlist", "fetch": fetch_watchlist})
 
 
 def fetch_events(dry_run=False):

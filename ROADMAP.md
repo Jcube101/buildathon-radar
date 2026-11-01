@@ -144,6 +144,26 @@ entity-resolution assessment).
       canonicalizer, and the collision handling; existing suites
       unaffected.
 
+## Status: AI company watchlist and creative contests (2026-11-01)
+
+Triggered by a miss: ElevenLabs' "The Search" ($100K for the catchiest
+AI-made ad) closed on 1 Nov 2026 without ever appearing in a digest. It was
+announced only on ElevenLabs' own site and promoted through ads, so no
+source could have seen it, and the old rubric would have scored an ad
+contest low anyway.
+
+- [x] `ai_companies.py`: 100 large AI companies with search aliases and
+      researched competition records (`docs/AI-COMPANY-WATCHLIST.md`).
+- [x] `fetch_watchlist()`: weekly Bing News RSS search per batch of
+      companies plus contest keywords, filtered and capped. **Live in
+      `SOURCES` (`ENABLE_WATCHLIST_SOURCE = True`), but not yet run
+      against the live endpoint**: run `scripts/watchlist_preview.py` and a
+      `--dry-run` on jobpi first.
+- [x] `agent.py`: AI creative contests from major AI companies score
+      22 to 30 on theme; watchlist items are explained as announcements.
+- [ ] Follow-ups: a direct lablab.ai source, turning on Cerebral Valley,
+      and Kaggle / DEV challenges (see the research doc).
+
 ## v1 non-goals (still out of scope)
 
 No other social sources (Twitter, LinkedIn), no scraping, no Apify, no

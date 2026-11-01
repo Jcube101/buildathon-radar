@@ -6,7 +6,8 @@ Context for Claude or any assistant working in this repo.
 
 Buildathon Radar is a personal AI agent that scans Devpost, Devfolio, and
 Luma every week (Cerebral Valley is built and tested but currently gated
-off, see Known limitations), filters events for relevance to an AI product
+off, see Known limitations), plus a news search for competitions run by 100
+large AI companies (the watchlist), filters events for relevance to an AI product
 manager based in Bengaluru, India, and emails a ranked digest every Sunday
 at 5:00 PM IST. It is the sibling project to signal-digest, reusing its
 spine (normalised item dict, single Claude call, `cache.json` dedup,
@@ -32,8 +33,10 @@ Python 3.13. Dependencies: `anthropic`, `requests`, `python-dotenv`,
 
 ```
 buildathon_radar/
-    fetcher.py         Devpost/Devfolio/Luma/Cerebral Valley fetch, normalise, cache.json dedup
-                       (ENABLE_CV_SOURCE near the top gates Cerebral Valley off by default)
+    fetcher.py         Devpost/Devfolio/Luma/Cerebral Valley/Watchlist fetch, normalise, cache.json dedup
+                       (ENABLE_CV_SOURCE near the top gates Cerebral Valley off by default;
+                       ENABLE_WATCHLIST_SOURCE gates the AI company news search, on)
+    ai_companies.py    the 100-company watchlist: search aliases, category, competition record
     triage.py          Jev (TypeSafe AI) pre-filter that runs ahead of the Claude call
                        (ENABLE_JEV_TRIAGE in .env; fails open, logs every verdict)
     agent.py           claude-sonnet-5 call, scoring rubric, strict JSON output
@@ -44,14 +47,17 @@ buildathon_radar/
     tracker_service.py v2 FastAPI app: GET /, /track, /applied, /list
 main.py          orchestrator, --dry-run flag, top-level fatal handler
 tests/           pytest, Claude and Jev clients always mocked, fixtures under tests/fixtures/
-scripts/         manual review tools, not wired into the weekly run
+scripts/         manual review tools (triage_preview, watchlist_preview), not wired into the weekly run
 scheduler/systemd/   digest service + timer, tracker service unit, install README
 ```
 
 ## How it works, in one paragraph
 
-All sources are free public JSON APIs, no scraping, no keys beyond what is
-already in `.env`. Fetched items are deduplicated against `cache.json` (per-event
+All listing sources are free public JSON APIs, no scraping, no keys beyond
+what is already in `.env`. The watchlist is a Bing News RSS search (also
+public, no key) for the 100 companies in `ai_companies.py` plus contest
+keywords; it exists to catch competitions announced only on a company's own
+site, like ElevenLabs' $100K ad contest the radar missed in Nov 2026. Fetched items are deduplicated against `cache.json` (per-event
 records, date-aware resurface logic) and normalised into a dict that includes
 `event_id`. A Jev triage pass (`triage.py`) then drops listings it confidently
 classifies as student or college run, which is the one class `agent.py`'s first
@@ -77,6 +83,7 @@ waiting for Sunday.
 venv/bin/pytest                     # full mocked test suite
 venv/bin/python main.py --dry-run   # live fetch + live Claude call, no send, no cache write
 venv/bin/python scripts/triage_preview.py   # live Jev triage over the current crop, no Claude call
+venv/bin/python scripts/watchlist_preview.py   # live AI company news search only, no Claude call
 venv/bin/python main.py             # the real weekly run
 systemctl --user list-timers        # confirm the Sunday 17:00 IST schedule
 journalctl --user -u buildathon-radar.service   # read digest run logs
@@ -101,6 +108,19 @@ curl -s https://radar.job-joseph.com/list             # everything currently tra
   measured value; it is marked TODO in `triage.py`. Every verdict lands in the
   `triage_log` table in `tracker.db`, which is the data to revisit both
   numbers against.
+- The watchlist (`fetch_watchlist`) was built 2026-11-01 without live
+  network access, against a fixture in Bing News' RSS format. Run
+  `scripts/watchlist_preview.py` on jobpi to confirm it returns real
+  results before trusting it. Bing's news RSS is undocumented like the
+  other endpoints; if it dies, the source-health footer shows a Watchlist
+  error. Items are news announcements, not listings: no dates or location,
+  and a contest covered again in a later week shows up as a new item
+  (different article URL). Per-company and total caps keep that bounded.
+  Research notes and the full company table: `docs/AI-COMPANY-WATCHLIST.md`.
+- AI creative contests (ad, film, music, design) run by a major AI company
+  with its own tools are scored as in-scope (theme fit 22 to 30) since
+  2026-11-01, so they are not dropped for being creative work rather than
+  software.
 - Luma's own IP-geo-scoped `cat-ai` category feed is documented but not
   used; only the deterministic Bengaluru place feed is wired in.
 - Luma and Cerebral Valley are both undocumented public JSON APIs, the same

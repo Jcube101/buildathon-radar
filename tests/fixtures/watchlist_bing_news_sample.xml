@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<rss version="2.0" xmlns:News="https://www.bing.com:443/news/search?q=ElevenLabs&amp;format=rss">
+<channel>
+<title>ElevenLabs - BingNews</title>
+<link>https://www.bing.com:443/news/search?q=ElevenLabs&amp;format=rss</link>
+<description>Search results</description>
+<item>
+<title>ElevenLabs launches $100,000 global contest to find the world's catchiest AI-made ad</title>
+<link>http://www.bing.com/news/apiclick.aspx?ref=FexRss&amp;aid=&amp;tid=abc123&amp;url=https%3a%2f%2fwww.example-news.com%2ftech%2felevenlabs-the-search-contest%3futm_source%3drss%26id%3d42&amp;c=111&amp;mkt=en-in</link>
+<description>Entrants invent a fictional brand and make a 15 to 45 second ad with an original jingle using ElevenCreative. Prize pool shared across 11 winners.</description>
+<pubDate>{RECENT}</pubDate>
+<News:Source>Example News</News:Source>
+</item>
+<item>
+<title>ElevenLabs' $100K ad contest: how to enter The Search before Nov 1</title>
+<link>http://www.bing.com/news/apiclick.aspx?ref=FexRss&amp;aid=&amp;tid=abc124&amp;url=https%3a%2f%2fwww.example-blog.com%2felevenlabs-search-how-to-enter&amp;c=112&amp;mkt=en-in</link>
+<description>A walkthrough of ElevenLabs' creative competition rules.</description>
+<pubDate>{RECENT}</pubDate>
+<News:Source>Example Blog</News:Source>
+</item>
+<item>
+<title>Third take on the ElevenLabs ad contest</title>
+<link>http://www.bing.com/news/apiclick.aspx?ref=FexRss&amp;aid=&amp;tid=abc125&amp;url=https%3a%2f%2fwww.example-three.com%2felevenlabs-contest&amp;c=113&amp;mkt=en-in</link>
+<description>Yet another article about the same contest.</description>
+<pubDate>{RECENT}</pubDate>
+<News:Source>Example Three</News:Source>
+</item>
+<item>
+<title>ElevenLabs hackathon comes to Bengaluru</title>
+<link>http://www.bing.com/news/apiclick.aspx?ref=FexRss&amp;aid=&amp;tid=abc126&amp;url=https%3a%2f%2fwww.example-old.com%2felevenlabs-hackathon&amp;c=114&amp;mkt=en-in</link>
+<description>An older article outside the lookback window.</description>
+<pubDate>{OLD}</pubDate>
+<News:Source>Example Old</News:Source>
+</item>
+<item>
+<title>Runway AI faces stiff competition from new video models</title>
+<link>http://www.bing.com/news/apiclick.aspx?ref=FexRss&amp;aid=&amp;tid=abc127&amp;url=https%3a%2f%2fwww.example-biz.com%2frunway-competition&amp;c=115&amp;mkt=en-in</link>
+<description>Market analysis.</description>
+<pubDate>{RECENT}</pubDate>
+<News:Source>Example Biz</News:Source>
+</item>
+<item>
+<title>Runway AI Gen:48 film challenge winners announced</title>
+<link>http://www.bing.com/news/apiclick.aspx?ref=FexRss&amp;aid=&amp;tid=abc128&amp;url=https%3a%2f%2fwww.example-film.com%2fgen48-winners&amp;c=116&amp;mkt=en-in</link>
+<description>The results are in.</description>
+<pubDate>{RECENT}</pubDate>
+<News:Source>Example Film</News:Source>
+</item>
+<item>
+<title>Runway AI opens Gen:48 short film challenge with a $50K prize pool</title>
+<link>http://www.bing.com/news/apiclick.aspx?ref=FexRss&amp;aid=&amp;tid=abc129&amp;url=https%3a%2f%2fwww.example-film.com%2fgen48-open&amp;c=117&amp;mkt=en-in</link>
+<description>A 48-hour AI film sprint, open worldwide.</description>
+<pubDate>{RECENT}</pubDate>
+<News:Source>Example Film</News:Source>
+</item>
+<item>
+<title>Unnamed AI startup raises $20M</title>
+<link>http://www.bing.com/news/apiclick.aspx?ref=FexRss&amp;aid=&amp;tid=abc130&amp;url=https%3a%2f%2fwww.example-vc.com%2fraise&amp;c=118&amp;mkt=en-in</link>
+<description>A funding story that names no watchlist company.</description>
+<pubDate>{RECENT}</pubDate>
+<News:Source>Example VC</News:Source>
+</item>
+</channel>
+</rss>

@@ -14,7 +14,9 @@ a mentor, was listed on Luma). This agent replaces luck with a weekly scan.
 ## How it works
 
 Four sources are fetched via free, public JSON APIs (three live, one gated),
-normalised into a common item shape, and deduplicated against `cache.json`.
+plus a weekly news search for competitions run by 100 large AI companies
+(the watchlist, which catches contests announced only on a company's own
+site). Everything is normalised into a common item shape, and deduplicated against `cache.json`.
 The same real-world event listed on more than one source collapses into a
 single entry rather than being shown twice. The survivors are sent to
 Claude (`claude-sonnet-5`), which applies a set of hard exclusions (student

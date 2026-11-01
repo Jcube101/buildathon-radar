@@ -116,6 +116,38 @@ gets `"Cerebral Valley Featured"` appended to its `themes` list, a real
 structured signal the Claude prompt credits as a modest host-prestige
 boost (see The Claude filter, below).
 
+### Watchlist (AI company competition news, added 2026-11-01)
+
+`GET https://www.bing.com/news/search?q=<query>&format=rss&qft=interval="8"&setlang=en`
+
+Built after the radar missed ElevenLabs' "The Search" ($100K AI ad contest),
+which was only ever announced on ElevenLabs' own site, in ads, and in press.
+Many AI company competitions never reach a listing platform; see
+`docs/AI-COMPANY-WATCHLIST.md` for the research.
+
+`buildathon_radar/ai_companies.py` holds 100 companies, each with search
+aliases chosen to be unambiguous ("Runway AI", not "Runway"). Companies are
+queried in batches of 6: `("alias1" OR "alias2" ...) (hackathon OR contest
+OR competition OR challenge OR "prize pool" ...)`. Bing's news RSS is
+undocumented but public, no key. Each item's link is a bing.com
+click-tracking redirect; the real article URL is taken from its `url`
+parameter and tracking parameters (`utm_*`, `fbclid`, ...) are stripped.
+
+An article is kept only if: published in the last 8 days; its headline or
+blurb names a company from its batch (whole-word match); it carries a
+contest signal (hackathon, contest, competition, challenge, prize, a
+currency amount); and it does not match market-competition or
+results-announcement patterns ("faces stiff competition", "antitrust",
+"winners announced", "wins"). At most 2 items per company and 30 in total
+per run. One failed batch is skipped; only all batches failing is reported
+as a source error.
+
+Normalised as `source: "Watchlist"`, `host` = company name, `title` = the
+headline, `location: "Unknown"`, `mode: "unknown"`, `dates: "Announced
+<date>"`, `prize` = the first currency amount in the headline or blurb,
+`themes: ["AI company watchlist", <category>]`, no `event_start`, so the
+cache's 45-day fallback suppression applies.
+
 ### Rejected for v1: Unstop
 
 `GET https://unstop.com/api/public/opportunity/search-result?opportunity=hackathons&per_page=10&oppstatus=open&searchTerm=ai`
@@ -200,6 +232,17 @@ just because it lacks the word "hackathon," and to treat the
 `"Cerebral Valley Featured"` theme tag (set by `fetch_cerebralvalley` on
 events from its `featured=true` call) as a small positive signal inside
 the existing host prestige component, not a new scoring axis.
+
+Two additions from 2026-11-01. First, AI creative contests: when a major
+AI company runs a contest where entrants make something with its own
+generative tools (an ad, jingle, film, song, design), theme fit is 22 to 30
+even though the entry is not software. Second, watchlist items are
+explained as news announcements: Claude keeps one only if it announces a
+competition the reader can still enter, excludes funding news, product
+launches, market competition, lawsuits, and closed contests, and keeps one
+item when several articles describe the same contest. A watchlist item that
+says the contest is global or online scores geography as online and open
+to India.
 
 Output is a single JSON object (`picks`, `skipped_count`, `week_note`). Parsing
 tries direct `json.loads`, then strips code fences, then extracts the
