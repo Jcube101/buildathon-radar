@@ -8,6 +8,7 @@ by company. This is a manual review tool; it is not wired into the weekly run.
     venv/bin/python scripts/watchlist_preview.py
     venv/bin/python scripts/watchlist_preview.py --company ElevenLabs --company Runway
     venv/bin/python scripts/watchlist_preview.py --raw   # per-query counts and rejections
+    venv/bin/python scripts/watchlist_preview.py --jev   # also show Jev's open-contest verdicts
 
 If every query errors, the news endpoint has changed or is blocked: the
 weekly digest's source-health footer will show the same error.
@@ -34,6 +35,10 @@ def main():
         "--raw", action="store_true",
         help="also print each news query with how many results came back and why each was rejected",
     )
+    parser.add_argument(
+        "--jev", action="store_true",
+        help="run Jev triage on the candidates (needs TYPESAFE_API_KEY; nothing is logged)",
+    )
     args = parser.parse_args()
 
     companies = AI_COMPANIES
@@ -58,6 +63,15 @@ def main():
         print(f"ERROR: every news query failed: {error}")
         return 1
 
+    verdict_for = {}
+    if args.jev and items:
+        from buildathon_radar.triage import triage_items
+
+        _, verdicts = triage_items(items, enabled=True, log=False)
+        verdict_for = {v["url"]: v for v in verdicts}
+        if not verdicts:
+            print("Jev did not run (TYPESAFE_API_KEY missing or client error); see warning above.\n")
+
     by_company = collections.defaultdict(list)
     for item in items:
         by_company[item["host"]].append(item)
@@ -69,6 +83,9 @@ def main():
             prize = f"  [{item['prize']}]" if item["prize"] else ""
             print(f"  {item['published']}  {item['title']}{prize}")
             print(f"    {item['url']}")
+            v = verdict_for.get(item["url"])
+            if v:
+                print(f"    Jev: {'KEEP' if v['passed'] else 'DROP'} ({v['reason']})")
         print()
     return 0
 

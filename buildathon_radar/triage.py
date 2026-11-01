@@ -28,6 +28,15 @@ Two questions from the original plan are intentionally absent:
     code. Jev has no calendar awareness; asking it to do date math would be
     strictly worse than a date comparison we can already make for free.
 
+Watchlist items (fetcher.fetch_watchlist: news headlines, not listings)
+get one extra question, `is_open_contest`, and are dropped when Jev is
+confidently sure (MIN_DROP_CONFIDENCE) the headline does not announce a
+competition people can still enter. Same principle as the category gate:
+agent.py already tells Claude to exclude such watchlist items, so Jev only
+reaches that verdict sooner. Keyword filters in fetcher.py could not keep up
+with headlines like "OpenAI turns to Google's AI chips amid race to
+challenge Nvidia" (live run, 2026-11-02).
+
 Every verdict is written to the `triage_log` table in tracker.db so the
 thresholds can be evaluated against real data before anything is tightened.
 """
@@ -122,6 +131,7 @@ CREATE TABLE IF NOT EXISTS triage_log (
     fit_confidence      REAL,
     is_remote           REAL,
     has_real_prize      REAL,
+    is_open_contest     REAL,
     is_over             INTEGER,
     passed              INTEGER NOT NULL,
     reason              TEXT NOT NULL,
@@ -164,6 +174,19 @@ def _build_questions(item):
             ),
         ),
     }
+
+    if item.get("source") == "Watchlist":
+        questions["is_open_contest"] = Noul(
+            instructions=(
+                "This is a news headline and summary, not an event listing. "
+                "Does it announce a competition, contest, hackathon, or "
+                "challenge with entries or participants that people can "
+                "still sign up for or submit to? Answer no if it is about "
+                "business rivalry (a company 'challenging' another), "
+                "funding, a product launch, a lawsuit, a grant, stock news, "
+                "or a contest that is over or has announced its winners."
+            ),
+        )
 
     if (item.get("prize") or "").strip():
         questions["has_real_prize"] = Noul(
@@ -249,6 +272,7 @@ def _blank_verdict(item, reason, error=None):
         "fit_confidence": None,
         "is_remote": None,
         "has_real_prize": None,
+        "is_open_contest": None,
         "is_over": _is_over(item),
         "passed": True,
         "reason": reason,
@@ -277,6 +301,7 @@ def triage_item(client, item):
         fit = answers["fit_score"]
         remote = answers.get("is_remote")
         prize = answers.get("has_real_prize")
+        open_contest = answers.get("is_open_contest")
 
         fit_score = float(fit.score)
         name = category.choice
@@ -296,6 +321,12 @@ def triage_item(client, item):
             passed = True
             reason = f"kept: category {name}"
 
+        if passed and open_contest is not None:
+            yes = float(open_contest.noul)
+            if 1.0 - yes >= MIN_DROP_CONFIDENCE:
+                passed = False
+                reason = f"dropped: watchlist item not an open contest (yes {yes:.2f})"
+
         return {
             "item": item,
             "url": item.get("url", ""),
@@ -308,6 +339,7 @@ def triage_item(client, item):
             "fit_confidence": float(fit.confidence),
             "is_remote": float(remote.noul) if remote is not None else None,
             "has_real_prize": float(prize.noul) if prize is not None else None,
+            "is_open_contest": float(open_contest.noul) if open_contest is not None else None,
             "is_over": _is_over(item),
             "passed": passed,
             "reason": reason,
@@ -331,6 +363,10 @@ def log_verdicts(verdicts, db_path=None, run_at=None):
         conn.execute("PRAGMA journal_mode = WAL")
         conn.execute("PRAGMA busy_timeout = 5000")
         conn.executescript(TRIAGE_SCHEMA)
+        # Older tracker.db files predate is_open_contest; add it in place.
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(triage_log)")}
+        if "is_open_contest" not in cols:
+            conn.execute("ALTER TABLE triage_log ADD COLUMN is_open_contest REAL")
         rows = []
         for v in verdicts:
             try:
@@ -351,6 +387,7 @@ def log_verdicts(verdicts, db_path=None, run_at=None):
                     v["fit_confidence"],
                     v["is_remote"],
                     v["has_real_prize"],
+                    v.get("is_open_contest"),
                     int(bool(v["is_over"])),
                     int(bool(v["passed"])),
                     v["reason"],
@@ -361,8 +398,8 @@ def log_verdicts(verdicts, db_path=None, run_at=None):
             """INSERT INTO triage_log (
                    run_at, event_id, url, title, source, model, category,
                    category_confidence, fit_score, fit_confidence, is_remote,
-                   has_real_prize, is_over, passed, reason, error
-               ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                   has_real_prize, is_open_contest, is_over, passed, reason, error
+               ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             rows,
         )
         conn.commit()

@@ -61,7 +61,9 @@ site, like ElevenLabs' $100K ad contest the radar missed in Nov 2026. Fetched it
 records, date-aware resurface logic) and normalised into a dict that includes
 `event_id`. A Jev triage pass (`triage.py`) then drops listings it confidently
 classifies as student or college run, which is the one class `agent.py`'s first
-hard exclusion rejects outright anyway. Triage fails open on every error path,
+hard exclusion rejects outright anyway, and watchlist headlines it is
+confidently sure do not announce an open contest (agent.py tells Claude to
+exclude those too). Triage fails open on every error path,
 so a Jev outage can only ever send more to Claude, never less. Claude scores
 and tiers the survivors and returns JSON picks (url, tier, score, why), not
 prose. `guard.py` checks every returned URL against the
@@ -83,7 +85,7 @@ waiting for Sunday.
 venv/bin/pytest                     # full mocked test suite
 venv/bin/python main.py --dry-run   # live fetch + live Claude call, no send, no cache write
 venv/bin/python scripts/triage_preview.py   # live Jev triage over the current crop, no Claude call
-venv/bin/python scripts/watchlist_preview.py   # live AI company news search only, no Claude call
+venv/bin/python scripts/watchlist_preview.py   # live AI company news search only, no Claude call (--raw, --jev)
 venv/bin/python main.py             # the real weekly run
 systemctl --user list-timers        # confirm the Sunday 17:00 IST schedule
 journalctl --user -u buildathon-radar.service   # read digest run logs

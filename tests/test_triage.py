@@ -318,3 +318,69 @@ class TestLogging:
         assert row[0] == 1
         assert row[1] is None
         assert "429" in row[2]
+
+
+def watchlist_item(**overrides):
+    item = make_item(
+        source="Watchlist",
+        title="OpenAI turns to Google's AI chips amid race to challenge Nvidia",
+        host="Google",
+        location="Unknown",
+        mode="unknown",
+        prize="",
+        themes=["AI company watchlist", "Big tech"],
+        event_start=None,
+        event_end=None,
+    )
+    item.update(overrides)
+    return item
+
+
+def watchlist_response(open_contest, category="other", confidence=0.6):
+    return FakeResponse(
+        {
+            "category": FakeChoice(category, confidence=confidence),
+            "fit_score": FakeScore(1.0),
+            "is_remote": FakeNoul(0.5),
+            "is_open_contest": FakeNoul(open_contest),
+        }
+    )
+
+
+class TestWatchlistOpenContest:
+    def test_question_asked_only_for_watchlist_items(self):
+        assert "is_open_contest" in triage._build_questions(watchlist_item())
+        assert "is_open_contest" not in triage._build_questions(make_item())
+
+    def test_confident_not_a_contest_is_dropped(self):
+        v = triage.triage_item(FakeClient(watchlist_response(0.1)), watchlist_item())
+        assert v["passed"] is False
+        assert "not an open contest" in v["reason"]
+        assert v["is_open_contest"] == pytest.approx(0.1)
+
+    def test_real_contest_is_kept(self):
+        item = watchlist_item(title="ElevenLabs launches $100,000 global contest for the catchiest AI ad")
+        v = triage.triage_item(FakeClient(watchlist_response(0.95)), item)
+        assert v["passed"] is True
+
+    def test_unsure_is_kept(self):
+        # 0.4 yes = only 0.6 sure it is not a contest: below the 0.7 floor.
+        v = triage.triage_item(FakeClient(watchlist_response(0.4)), watchlist_item())
+        assert v["passed"] is True
+
+    def test_jev_error_fails_open(self):
+        v = triage.triage_item(FakeClient(raises=RuntimeError("down")), watchlist_item())
+        assert v["passed"] is True
+        assert v["is_open_contest"] is None
+
+    def test_log_adds_column_to_old_table(self, tmp_path):
+        db = tmp_path / "tracker.db"
+        conn = sqlite3.connect(db)
+        conn.executescript(triage.TRIAGE_SCHEMA.replace("    is_open_contest     REAL,\n", ""))
+        conn.close()
+        v = triage.triage_item(FakeClient(watchlist_response(0.1)), watchlist_item())
+        triage.log_verdicts([v], db_path=str(db))
+        conn = sqlite3.connect(db)
+        row = conn.execute("SELECT is_open_contest, passed FROM triage_log").fetchone()
+        conn.close()
+        assert row[0] == pytest.approx(0.1) and row[1] == 0
