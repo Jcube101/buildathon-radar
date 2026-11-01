@@ -7,6 +7,7 @@ by company. This is a manual review tool; it is not wired into the weekly run.
 
     venv/bin/python scripts/watchlist_preview.py
     venv/bin/python scripts/watchlist_preview.py --company ElevenLabs --company Runway
+    venv/bin/python scripts/watchlist_preview.py --raw   # per-query counts and rejections
 
 If every query errors, the news endpoint has changed or is blocked: the
 weekly digest's source-health footer will show the same error.
@@ -29,6 +30,10 @@ def main():
         "--company", action="append", default=[],
         help="limit to this company name (repeatable); default is all 100",
     )
+    parser.add_argument(
+        "--raw", action="store_true",
+        help="also print each news query with how many results came back and why each was rejected",
+    )
     args = parser.parse_args()
 
     companies = AI_COMPANIES
@@ -39,7 +44,16 @@ def main():
             print("No matching company names. Names are as listed in buildathon_radar/ai_companies.py.")
             return 1
 
-    items, error = fetch_watchlist(companies=companies)
+    stats = []
+    items, error = fetch_watchlist(companies=companies, stats=stats)
+
+    if args.raw:
+        for st in stats:
+            status = f"ERROR {st['error']}" if st["error"] else f"{st['raw']} results, {st['kept']} kept"
+            print(f"QUERY {st['query'][:120]}\n  {status}")
+            for line in st["rejected"]:
+                print(f"    - {line}")
+        print()
     if error:
         print(f"ERROR: every news query failed: {error}")
         return 1

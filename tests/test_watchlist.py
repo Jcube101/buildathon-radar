@@ -31,6 +31,11 @@ class FakeResp:
         pass
 
 
+@pytest.fixture(autouse=True)
+def _no_topic_queries(monkeypatch):
+    monkeypatch.setattr(fetcher, "WATCHLIST_TOPIC_QUERIES", [])
+
+
 def _patch_get(monkeypatch, handler):
     calls = []
 
@@ -165,6 +170,43 @@ class TestFetchWatchlist:
     def test_registered_as_a_source(self):
         assert fetcher.ENABLE_WATCHLIST_SOURCE is True
         assert any(s["name"] == "Watchlist" for s in fetcher.SOURCES)
+
+
+class TestContestSignal:
+    # Headlines that passed the first live run (2026-11-01) and are not contests.
+    @pytest.mark.parametrize("title,blurb", [
+        ("IT hardware reseller lists GPUs from decommissioned Nvidia supercomputer on eBay for $60 million", "AMD and NVIDIA chips."),
+        ("DeepSeek Unveils Super-Agent To Gain Edge Over Anthropic", "A challenge to US labs."),
+        ("US Is Inquiring About Nvidia's Purchase Of Hugging Face, Sources Say", "Shares closed at $12.93 amid competition concerns."),
+        ("Scale AI Faces Worker Privacy Backlash", "A new challenge for the company."),
+    ])
+    def test_live_false_positives_rejected(self, title, blurb):
+        assert not fetcher._is_contest_news(title, blurb)
+
+    @pytest.mark.parametrize("title,blurb", [
+        ("The Search: $100,000 for the world's catchiest ad", "ElevenLabs opens submissions; a global contest for AI-made ads."),
+        ("Runway AI opens Gen:48 short film challenge", ""),
+        ("Anthropic announces Built with Claude: Japan hackathon", ""),
+    ])
+    def test_real_contests_accepted(self, title, blurb):
+        assert fetcher._is_contest_news(title, blurb)
+
+
+class TestTopicQueries:
+    def test_topic_query_matches_any_company(self, monkeypatch):
+        monkeypatch.setattr(fetcher, "WATCHLIST_TOPIC_QUERIES", ['"AI contest"'])
+        monkeypatch.setattr(fetcher, "WATCHLIST_BATCH_SIZE", 100)
+        rss = _rss_fixture()
+        calls = _patch_get(monkeypatch, lambda n: FakeResp(rss))
+        stats = []
+        items, error = fetcher.fetch_watchlist(companies=AI_COMPANIES, stats=stats)
+        assert error is None
+        # 17 company batches would be 1 at size 100, plus 1 topic query.
+        assert [c["params"]["q"] for c in calls][-1] == '"AI contest"'
+        assert len(stats) == 2
+        assert stats[-1]["raw"] == 8
+        assert any(r.startswith("not a contest") for r in stats[-1]["rejected"])
+        assert {i["host"] for i in items} == {"ElevenLabs", "Runway"}
 
 
 class TestRubric:

@@ -133,10 +133,18 @@ undocumented but public, no key. Each item's link is a bing.com
 click-tracking redirect; the real article URL is taken from its `url`
 parameter and tracking parameters (`utm_*`, `fbclid`, ...) are stripped.
 
+Eleven topic queries run alongside the company batches ("AI hackathon",
+"AI contest", "AI film" contest, "AI ad" contest, buildathon, ...): they
+search for the contest itself and keep only articles naming any watchlist
+company. Added after the first live run, where company-name queries
+returned mostly general company news.
+
 An article is kept only if: published in the last 8 days; its headline or
-blurb names a company from its batch (whole-word match); it carries a
-contest signal (hackathon, contest, competition, challenge, prize, a
-currency amount); and it does not match market-competition or
+blurb names a watchlist company (whole-word match); its headline names a
+contest (hackathon, contest, competition, challenge, prize, film festival,
+submissions open) or its blurb uses an unambiguous contest phrase
+(hackathon, contest, prize pool, cash prize, grand prize), and a bare
+currency amount does not count; and it does not match market-competition or
 results-announcement patterns ("faces stiff competition", "antitrust",
 "winners announced", "wins"). At most 2 items per company and 30 in total
 per run. One failed batch is skipped; only all batches failing is reported

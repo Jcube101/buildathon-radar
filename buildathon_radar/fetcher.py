@@ -845,13 +845,38 @@ WATCHLIST_CONTEST_TERMS = (
     '"prize pool" OR "cash prize" OR "in prizes"'
 )
 
-# A headline or blurb must carry one of these to count as a contest at all.
-_CONTEST_SIGNAL_RE = re.compile(
+# Contest signal. The headline must name a contest, or the blurb must use
+# one of the unambiguous contest words. A bare currency amount is not
+# enough: the first live run (2026-11-01) let through "$60 million" GPU
+# resale and "$12.93" share-price stories on that basis alone.
+_TITLE_CONTEST_RE = re.compile(
     r"hackathon|buildathon|contest|competition|challenge\b|prize|"
-    r"film festival|submissions? (?:open|close)|"
-    r"[$₹€£]\s?\d|\brs\.?\s?\d|\binr\s?\d",
+    r"film festival|submissions? (?:open|close)|call for entries",
     re.IGNORECASE,
 )
+_BLURB_CONTEST_RE = re.compile(
+    r"hackathon|buildathon|contest\b|prize pool|cash prize|grand prize|"
+    r"submissions? (?:open|close)|call for entries",
+    re.IGNORECASE,
+)
+
+# Topic queries: the first live run showed company-name queries return
+# mostly general company news. These search for the contest itself and
+# then keep only articles that name a watchlist company.
+WATCHLIST_TOPIC_QUERIES = [
+    '"AI hackathon"',
+    '"AI contest"',
+    '"AI competition" prize',
+    '"AI challenge" prize',
+    'hackathon "prize pool"',
+    '"AI film" (contest OR festival OR challenge)',
+    '"AI ad" (contest OR competition)',
+    '"AI music" OR "AI song" contest',
+    '"creator contest" OR "creator challenge" AI',
+    '"developer challenge" OR "developer competition" AI',
+    'buildathon',
+]
+
 
 # "Competition" and "challenge" are also business-news words. These patterns
 # catch the common market-competition and results-announcement senses, which
@@ -987,19 +1012,31 @@ def _parse_rss_items(xml_text):
     return entries
 
 
-def fetch_watchlist(companies=None):
-    """Returns (items, error). error is None if at least one batch succeeded.
+def _is_contest_news(title, blurb):
+    if _NOT_A_CONTEST_RE.search(f"{title} {blurb}"):
+        return False
+    return bool(_TITLE_CONTEST_RE.search(title) or _BLURB_CONTEST_RE.search(blurb))
 
-    One news query per batch of WATCHLIST_BATCH_SIZE companies. An article
-    is kept only if it was published in the last WATCHLIST_LOOKBACK_DAYS,
-    names a company from its batch, carries a contest signal, and does not
-    look like market-competition or results news. Caps per company and
-    overall keep a busy news week from flooding the Claude call. A single
-    failed batch is skipped, not fatal; only all batches failing counts as
-    a source error, so the health footer still trips if the endpoint dies.
+
+def fetch_watchlist(companies=None, stats=None):
+    """Returns (items, error). error is None if at least one query succeeded.
+
+    Two kinds of news query: one per batch of WATCHLIST_BATCH_SIZE companies
+    (company names plus contest words), and the WATCHLIST_TOPIC_QUERIES
+    (contest words only, matched against every company afterwards). An
+    article is kept only if it was published in the last
+    WATCHLIST_LOOKBACK_DAYS, names a watchlist company, reads as a contest
+    (_is_contest_news), and is not a duplicate. Caps per company and overall
+    keep a busy news week from flooding the Claude call. A failed query is
+    skipped; only every query failing counts as a source error, so the
+    health footer still trips if the endpoint dies.
+
+    stats, if given a list, receives one dict per query (query, raw, kept,
+    rejected titles) for scripts/watchlist_preview.py --raw.
     """
     companies = companies if companies is not None else AI_COMPANIES
-    batches = _watchlist_batches(companies, WATCHLIST_BATCH_SIZE)
+    queries = [(_watchlist_query(b), b) for b in _watchlist_batches(companies, WATCHLIST_BATCH_SIZE)]
+    queries += [(q, companies) for q in WATCHLIST_TOPIC_QUERIES]
     cutoff = datetime.now(IST) - timedelta(days=WATCHLIST_LOOKBACK_DAYS)
 
     items = []
@@ -1008,14 +1045,17 @@ def fetch_watchlist(companies=None):
     per_company = {}
     errors = []
 
-    for i, batch in enumerate(batches):
+    for i, (query, candidates) in enumerate(queries):
         if i > 0:
             time.sleep(SOURCE_REQUEST_DELAY_S)
+        stat = {"query": query, "raw": 0, "kept": 0, "rejected": [], "error": None}
+        if stats is not None:
+            stats.append(stat)
         try:
             resp = requests.get(
                 WATCHLIST_NEWS_URL,
                 params={
-                    "q": _watchlist_query(batch),
+                    "q": query,
                     "format": "rss",
                     "qft": 'interval="8"',  # Bing's "past week" filter
                     "setlang": "en",
@@ -1027,23 +1067,35 @@ def fetch_watchlist(companies=None):
             entries = _parse_rss_items(resp.text)
         except Exception as e:
             errors.append(str(e))
+            stat["error"] = str(e)
             continue
 
+        stat["raw"] = len(entries)
         for entry in entries:
-            text = f"{_strip_html(entry['title'])} {_strip_html(entry['description'])}"
-            if not _CONTEST_SIGNAL_RE.search(text) or _NOT_A_CONTEST_RE.search(text):
+            title = _strip_html(entry["title"])
+            blurb = _strip_html(entry["description"])
+
+            def reject(reason):
+                stat["rejected"].append(f"{reason}: {title}")
+
+            if not _is_contest_news(title, blurb):
+                reject("not a contest")
                 continue
-            company = _match_company(text, batch)
+            company = _match_company(f"{title} {blurb}", candidates)
             if company is None:
+                reject("no watchlist company")
                 continue
             published = _parse_news_date(entry["pub_date"])
             if published is not None and published < cutoff:
+                reject("too old")
                 continue
             if per_company.get(company["name"], 0) >= WATCHLIST_MAX_PER_COMPANY:
+                reject(f"cap reached for {company['name']}")
                 continue
             try:
                 item = normalise_watchlist(entry, company)
             except Exception:
+                reject("normalise failed")
                 continue
             norm_title = _normalize_title(item["title"])
             if not item["url"] or item["url"] in seen_urls or norm_title in seen_titles:
@@ -1052,12 +1104,13 @@ def fetch_watchlist(companies=None):
             seen_titles.add(norm_title)
             per_company[company["name"]] = per_company.get(company["name"], 0) + 1
             items.append(item)
+            stat["kept"] += 1
 
-    if errors and len(errors) == len(batches):
+    if errors and len(errors) == len(queries):
         print(f"  WARNING: Watchlist fetch error: {errors[0]}")
         return [], errors[0]
     if errors:
-        print(f"  WARNING: Watchlist: {len(errors)} of {len(batches)} news queries failed: {errors[0]}")
+        print(f"  WARNING: Watchlist: {len(errors)} of {len(queries)} news queries failed: {errors[0]}")
 
     items.sort(key=lambda it: it["published"], reverse=True)
     return items[:WATCHLIST_MAX_ITEMS], None
