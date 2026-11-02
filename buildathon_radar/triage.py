@@ -326,6 +326,8 @@ def triage_item(client, item):
             if 1.0 - yes >= MIN_DROP_CONFIDENCE:
                 passed = False
                 reason = f"dropped: watchlist item not an open contest (yes {yes:.2f})"
+            else:
+                reason += f", open contest yes {yes:.2f}"
 
         return {
             "item": item,

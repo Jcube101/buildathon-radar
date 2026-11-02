@@ -367,6 +367,7 @@ class TestWatchlistOpenContest:
         # 0.4 yes = only 0.6 sure it is not a contest: below the 0.7 floor.
         v = triage.triage_item(FakeClient(watchlist_response(0.4)), watchlist_item())
         assert v["passed"] is True
+        assert "open contest yes 0.40" in v["reason"]
 
     def test_jev_error_fails_open(self):
         v = triage.triage_item(FakeClient(raises=RuntimeError("down")), watchlist_item())
