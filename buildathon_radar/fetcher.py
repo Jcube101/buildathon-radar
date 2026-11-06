@@ -141,12 +141,26 @@ def load_cache():
 
 
 def save_cache(cache):
-    """Saves the {event_id: record} dict to the cache file."""
+    """Saves the {event_id: record} dict to the cache file, atomically.
+
+    The JSON goes to cache.json.tmp in the same folder, is flushed and
+    fsynced, then os.replace swaps it in. A failed or interrupted write
+    leaves the previous cache.json intact. Writing in place could leave a
+    half-written file, which load_cache would silently read as an empty
+    cache, wiping every seen and resurface record."""
+    tmp_file = CACHE_FILE + ".tmp"
     try:
-        with open(CACHE_FILE, "w") as f:
+        with open(tmp_file, "w") as f:
             json.dump(cache, f, indent=2, sort_keys=True)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_file, CACHE_FILE)
     except Exception as e:
         print(f"  WARNING: Cache save error: {e}")
+        try:
+            os.remove(tmp_file)
+        except OSError:
+            pass
 
 
 def _normalize_title(title):
@@ -1133,9 +1147,15 @@ if ENABLE_WATCHLIST_SOURCE:
 
 
 def fetch_events(dry_run=False):
-    """Returns (items, source_health).
+    """Returns (items, source_health, pending_cache).
 
     source_health = {"Devpost": {"count": N, "error": None or str}, ...}
+
+    pending_cache is the full {event_id: record} dict this run would leave
+    behind. It is not written here: main.py saves it only after the digest
+    email is sent, so a run that fails partway leaves cache.json untouched
+    and the next run retries the same events (issue #1). In dry run the
+    cache is never loaded, so pending_cache holds only this run's records.
     """
     cache = {} if dry_run else load_cache()
     today_dt = datetime.now()
@@ -1237,15 +1257,12 @@ def fetch_events(dry_run=False):
         source_health[name] = {"count": len(fresh), "error": None}
         all_items.extend(fresh)
 
-    if not dry_run:
-        merged = {**cache, **updates}
-        save_cache(merged)
-
-    return all_items, source_health
+    pending_cache = {**cache, **updates}
+    return all_items, source_health, pending_cache
 
 
 if __name__ == "__main__":
-    events, health = fetch_events(dry_run=True)
+    events, health, _ = fetch_events(dry_run=True)
     print("Source health:")
     for name, info in health.items():
         print(f"  {name}: {info}")

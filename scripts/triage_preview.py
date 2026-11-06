@@ -42,7 +42,7 @@ def main():
     args = parser.parse_args()
 
     print("Fetching live listings (dry run, cache untouched)...")
-    items, health = fetch_events(dry_run=True)
+    items, health, _ = fetch_events(dry_run=True)
     for name, info in health.items():
         state = f"ERROR: {info['error']}" if info["error"] else f"{info['count']} items"
         print(f"  {name}: {state}")

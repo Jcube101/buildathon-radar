@@ -1,6 +1,9 @@
+import smtplib
 from email import message_from_string
 from email.header import decode_header
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from buildathon_radar import deliver
 
@@ -64,6 +67,52 @@ class TestMissingCredentials:
         ):
             deliver.send_digest("some digest", "<html></html>")
         mock_smtplib.SMTP_SSL.assert_not_called()
+
+
+class TestSendDigestResult:
+    """main.py saves the cache only when send_digest returns True (issue
+    #1), so True must mean Gmail accepted the message, and every failure
+    path must return False without raising."""
+
+    @pytest.fixture(autouse=True)
+    def _credentials(self, monkeypatch):
+        monkeypatch.setenv("EMAIL_ADDRESS", "radar@example.com")
+        monkeypatch.setenv("EMAIL_PASSWORD", "app-password")
+
+    def test_returns_true_after_sendmail_succeeds(self):
+        with patch("buildathon_radar.deliver.smtplib.SMTP_SSL") as mock_ssl, patch.object(
+            deliver, "save_to_archive"
+        ):
+            mock_server = mock_ssl.return_value.__enter__.return_value
+            assert deliver.send_digest("digest", "<html></html>") is True
+        mock_server.sendmail.assert_called_once()
+
+    def test_returns_false_without_credentials(self, monkeypatch):
+        monkeypatch.delenv("EMAIL_PASSWORD")
+        with patch("buildathon_radar.deliver.smtplib.SMTP_SSL") as mock_ssl, patch.object(
+            deliver, "save_to_archive"
+        ):
+            assert deliver.send_digest("digest", "<html></html>") is False
+        mock_ssl.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "where, error",
+        [
+            ("login", smtplib.SMTPAuthenticationError(535, b"bad credentials")),
+            ("sendmail", smtplib.SMTPServerDisconnected("connection dropped")),
+            ("connect", OSError("network unreachable")),
+        ],
+    )
+    def test_returns_false_and_never_raises_on_send_error(self, where, error):
+        with patch("buildathon_radar.deliver.smtplib.SMTP_SSL") as mock_ssl, patch.object(
+            deliver, "save_to_archive"
+        ):
+            mock_server = mock_ssl.return_value.__enter__.return_value
+            if where == "connect":
+                mock_ssl.side_effect = error
+            else:
+                getattr(mock_server, where).side_effect = error
+            assert deliver.send_digest("digest", "<html></html>") is False
 
 
 class TestFailureEmail:
