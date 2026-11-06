@@ -141,12 +141,26 @@ def load_cache():
 
 
 def save_cache(cache):
-    """Saves the {event_id: record} dict to the cache file."""
+    """Saves the {event_id: record} dict to the cache file, atomically.
+
+    The JSON goes to cache.json.tmp in the same folder, is flushed and
+    fsynced, then os.replace swaps it in. A failed or interrupted write
+    leaves the previous cache.json intact. Writing in place could leave a
+    half-written file, which load_cache would silently read as an empty
+    cache, wiping every seen and resurface record."""
+    tmp_file = CACHE_FILE + ".tmp"
     try:
-        with open(CACHE_FILE, "w") as f:
+        with open(tmp_file, "w") as f:
             json.dump(cache, f, indent=2, sort_keys=True)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_file, CACHE_FILE)
     except Exception as e:
         print(f"  WARNING: Cache save error: {e}")
+        try:
+            os.remove(tmp_file)
+        except OSError:
+            pass
 
 
 def _normalize_title(title):

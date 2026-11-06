@@ -259,6 +259,36 @@ class TestCache:
         }
         fetcher.save_cache({"acme-foo-hack-2026-01-01": record})
         assert fetcher.load_cache() == {"acme-foo-hack-2026-01-01": record}
+        assert not (tmp_path / "cache.json.tmp").exists()
+
+    def _write_old_cache(self, tmp_path):
+        old = {"old-event": {"event_id": "old-event", "urls": ["https://a.com"]}}
+        (tmp_path / "cache.json").write_text(json.dumps(old))
+        return old, (tmp_path / "cache.json").read_text()
+
+    def test_failed_write_leaves_old_cache_intact(self, tmp_path, monkeypatch):
+        """json.dump fails partway: sort_keys puts the good record first, so
+        some JSON is already written when the unserializable value is hit.
+        Writing in place, that left a truncated cache.json that load_cache
+        read back as {}."""
+        monkeypatch.chdir(tmp_path)
+        old, before = self._write_old_cache(tmp_path)
+        fetcher.save_cache({"a-good": {"urls": ["https://b.com"]}, "z-bad": object()})
+        assert (tmp_path / "cache.json").read_text() == before
+        assert fetcher.load_cache() == old
+        assert not (tmp_path / "cache.json.tmp").exists()
+
+    def test_failure_before_replace_leaves_old_cache_intact(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        old, before = self._write_old_cache(tmp_path)
+
+        def fail_replace(src, dst):
+            raise OSError("disk went away")
+
+        monkeypatch.setattr(fetcher.os, "replace", fail_replace)
+        fetcher.save_cache({"new-event": {"urls": ["https://b.com"]}})
+        assert (tmp_path / "cache.json").read_text() == before
+        assert fetcher.load_cache() == old
 
 
 class TestCacheMigrationFromFlatFormat:

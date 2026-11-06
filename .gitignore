@@ -219,6 +219,7 @@ __marimo__/
 
 # buildathon-radar runtime state
 cache.json
+cache.json.tmp
 archive/
 scheduler_log.txt
 tracker.db
