@@ -352,9 +352,10 @@ class TestFetchEventsBasics:
                 {"name": "Devfolio", "fetch": lambda: ([], None)},
             ],
         )
-        items, health = fetcher.fetch_events(dry_run=True)
+        items, health, pending_cache = fetcher.fetch_events(dry_run=True)
         # cache not loaded -> item not suppressed despite being "cached" today
         assert len(items) == 1
+        assert record["event_id"] not in pending_cache  # on-disk record never read
         with open(tmp_path / "cache.json") as f:
             data = json.load(f)
         assert data == {record["event_id"]: record}  # untouched
@@ -372,7 +373,7 @@ class TestFetchEventsBasics:
                 },
             ],
         )
-        items, health = fetcher.fetch_events(dry_run=True)
+        items, health, _ = fetcher.fetch_events(dry_run=True)
         assert len(items) == 1
         assert health["Devfolio"]["count"] == 1
         assert health["Devpost"]["error"] == "boom"
@@ -388,15 +389,53 @@ class TestFetchEventsBasics:
                 {"name": "Devfolio", "fetch": lambda: ([], None)},
             ],
         )
-        items, health = fetcher.fetch_events(dry_run=False)
+        items, health, pending_cache = fetcher.fetch_events(dry_run=False)
         assert len(items) == 1
-        with open(tmp_path / "cache.json") as f:
-            saved = json.load(f)
-        assert len(saved) == 1
-        record = next(iter(saved.values()))
+        assert len(pending_cache) == 1
+        record = next(iter(pending_cache.values()))
         assert record["urls"] == [url]
         assert record["status"] == "seen"
         assert record["resurfaced"] is False
+
+    def test_non_dry_run_does_not_create_cache_file(self, tmp_path, monkeypatch):
+        """Issue #1: fetch_events must not write the cache itself. main.py
+        saves pending_cache only after the digest email is sent."""
+        monkeypatch.chdir(tmp_path)
+        url = "https://example.com/event"
+        monkeypatch.setattr(
+            fetcher,
+            "SOURCES",
+            [{"name": "Devpost", "fetch": lambda: ([self._make_item(url)], None)}],
+        )
+        fetcher.fetch_events(dry_run=False)
+        assert not (tmp_path / "cache.json").exists()
+
+    def test_non_dry_run_leaves_existing_cache_file_untouched(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        old_record = {
+            "event_id": "old-event",
+            "urls": ["https://example.com/old"],
+            "first_seen": "2026-01-01",
+            "last_shown": "2026-01-01",
+            "status": "seen",
+            "resurfaced": False,
+            "event_start": None,
+            "event_end": None,
+        }
+        original = json.dumps({"old-event": old_record})
+        (tmp_path / "cache.json").write_text(original)
+        url = "https://example.com/new"
+        monkeypatch.setattr(
+            fetcher,
+            "SOURCES",
+            [{"name": "Devpost", "fetch": lambda: ([self._make_item(url)], None)}],
+        )
+        items, health, pending_cache = fetcher.fetch_events(dry_run=False)
+        assert (tmp_path / "cache.json").read_text() == original
+        # The returned dict carries the old record forward plus this run's.
+        assert pending_cache["old-event"] == old_record
+        assert items[0]["event_id"] in pending_cache
+        assert len(pending_cache) == 2
 
 
 class TestEventIdPassthrough:
@@ -434,7 +473,7 @@ class TestEventIdPassthrough:
                 {"name": "Devfolio", "fetch": lambda: ([], None)},
             ],
         )
-        items, health = fetcher.fetch_events(dry_run=True)
+        items, health, _ = fetcher.fetch_events(dry_run=True)
         assert len(items) == 1
         assert items[0]["event_id"]
         assert items[0]["event_id"] == fetcher.derive_event_id(item)
@@ -464,7 +503,7 @@ class TestEventIdPassthrough:
                 {"name": "Devfolio", "fetch": lambda: ([], None)},
             ],
         )
-        items, health = fetcher.fetch_events(dry_run=False)
+        items, health, _ = fetcher.fetch_events(dry_run=False)
         assert len(items) == 1
         assert items[0]["event_id"] == event_id
 
@@ -480,7 +519,7 @@ class TestEventIdPassthrough:
                 {"name": "Devfolio", "fetch": lambda: ([], None)},
             ],
         )
-        items, health = fetcher.fetch_events(dry_run=True)
+        items, health, _ = fetcher.fetch_events(dry_run=True)
         assert len(items) == 1
         assert items[0]["event_id"] == fetcher._legacy_event_id(url)
 
@@ -968,14 +1007,12 @@ class TestExactTitleMerge:
                 {"name": "Luma", "fetch": lambda: ([], None)},
             ],
         )
-        items, health = fetcher.fetch_events(dry_run=False)
+        items, health, pending_cache = fetcher.fetch_events(dry_run=False)
         assert len(items) == 1
         assert items[0]["source"] == "Devpost"  # earlier-priority source wins
 
-        with open(tmp_path / "cache.json") as f:
-            saved = json.load(f)
-        assert len(saved) == 1  # one record, not two
-        record = next(iter(saved.values()))
+        assert len(pending_cache) == 1  # one record, not two
+        record = next(iter(pending_cache.values()))
         assert set(record["urls"]) == {
             "https://xprize.devpost.com/",
             "https://cerebralvalley.ai/e/xprize",
@@ -1004,7 +1041,7 @@ class TestExactTitleMerge:
                 {"name": "Luma", "fetch": lambda: ([item_b], None)},
             ],
         )
-        items, health = fetcher.fetch_events(dry_run=True)
+        items, health, _ = fetcher.fetch_events(dry_run=True)
         assert len(items) == 2
 
     def test_cv_link_to_luma_url_collapses_via_canonicalized_url_index(self, tmp_path, monkeypatch):
@@ -1026,7 +1063,7 @@ class TestExactTitleMerge:
                 {"name": "Luma", "fetch": lambda: ([luma_item], None)},
             ],
         )
-        items, health = fetcher.fetch_events(dry_run=True)
+        items, health, _ = fetcher.fetch_events(dry_run=True)
         assert len(items) == 1
 
     def test_legacy_cache_record_without_norm_title_still_loads_and_functions(self, tmp_path, monkeypatch):
@@ -1053,10 +1090,8 @@ class TestExactTitleMerge:
                 {"name": "Devfolio", "fetch": lambda: ([], None)},
             ],
         )
-        items, health = fetcher.fetch_events(dry_run=False)  # must not raise
-        with open(tmp_path / "cache.json") as f:
-            saved = json.load(f)
-        record = saved[legacy_record["event_id"]]
+        items, health, pending_cache = fetcher.fetch_events(dry_run=False)  # must not raise
+        record = pending_cache[legacy_record["event_id"]]
         assert record["norm_title"] == "foo hackathon"  # acquired on this touch
 
     def test_same_run_duplicate_within_resurface_window_shows_once(self, tmp_path, monkeypatch):
@@ -1079,7 +1114,7 @@ class TestExactTitleMerge:
                 {"name": "Luma", "fetch": lambda: ([item_b], None)},
             ],
         )
-        items, health = fetcher.fetch_events(dry_run=True)
+        items, health, _ = fetcher.fetch_events(dry_run=True)
         assert len(items) == 1
 
 
@@ -1138,10 +1173,8 @@ class TestResurfaceLogic:
                 {"name": "Devfolio", "fetch": lambda: ([], None)},
             ],
         )
-        items, health = fetcher.fetch_events(dry_run=False)
-        with open(tmp_path / "cache.json") as f:
-            saved = json.load(f)
-        return items, saved[record["event_id"]]
+        items, health, pending_cache = fetcher.fetch_events(dry_run=False)
+        return items, pending_cache[record["event_id"]]
 
     def test_future_event_suppressed_outside_resurface_window(self, tmp_path, monkeypatch):
         future_start = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")

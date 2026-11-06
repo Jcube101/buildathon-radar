@@ -5,14 +5,16 @@ from buildathon_radar import tracker_store
 from buildathon_radar.agent import run_agent
 from buildathon_radar.deliver import get_date_range, send_digest, send_failure_email
 from buildathon_radar.digest import build_digest, build_html_digest
-from buildathon_radar.fetcher import fetch_events
+from buildathon_radar.fetcher import fetch_events, save_cache
 from buildathon_radar.guard import validate_picks
 from buildathon_radar.triage import triage_items
 
 dry_run = "--dry-run" in sys.argv
 
 try:
-    items, source_health = fetch_events(dry_run=dry_run)
+    # pending_cache is saved only after the email goes out (issue #1), so a
+    # run that fails anywhere before that leaves cache.json as it was.
+    items, source_health, pending_cache = fetch_events(dry_run=dry_run)
     # Optional Jev pre-filter (ENABLE_JEV_TRIAGE, off by default). Fails open,
     # so triaged_items is `items` unchanged whenever triage cannot run.
     triaged_items, _ = triage_items(items)
@@ -51,7 +53,11 @@ try:
             tracked_events=tracked_events,
             applied_events=applied_events,
         )
-        send_digest(digest, html_digest)
+        if not send_digest(digest, html_digest):
+            raise RuntimeError(
+                "digest email not sent; cache left unchanged so next run retries"
+            )
+        save_cache(pending_cache)
 
     sys.exit(0)
 

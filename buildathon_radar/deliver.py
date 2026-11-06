@@ -37,6 +37,9 @@ def _count_picks(digest_text):
 
 
 def send_digest(digest_text, html_digest):
+    """Archives the digest, then emails it. Never raises. Returns True only
+    once Gmail has accepted the message and False on every other path, so
+    main.py can hold back the cache write when the email did not go out."""
     try:
         save_to_archive(digest_text)
     except Exception as e:
@@ -50,7 +53,7 @@ def send_digest(digest_text, html_digest):
         print(
             "  ERROR: EMAIL_ADDRESS or EMAIL_PASSWORD not set in .env, skipping email send."
         )
-        return
+        return False
 
     try:
         pick_count = _count_picks(digest_text)
@@ -74,6 +77,7 @@ def send_digest(digest_text, html_digest):
             server.sendmail(sender, recipient, msg.as_string())
 
         print("Digest sent to your inbox.")
+        return True
     except smtplib.SMTPAuthenticationError:
         print(
             "  ERROR: Gmail authentication failed. Check EMAIL_ADDRESS and EMAIL_PASSWORD in .env."
@@ -82,6 +86,7 @@ def send_digest(digest_text, html_digest):
         print(f"  ERROR: SMTP error, {e}")
     except Exception as e:
         print(f"  ERROR: Failed to send email, {e}")
+    return False
 
 
 def send_failure_email(error_text):
